@@ -1,0 +1,9 @@
+{
+  "name": "@financehome/shared",
+  "version": "1.0.0",
+  "private": true,
+  "types": "./types/index.ts",
+  "exports": {
+    ".": "./types/index.ts"
+  }
+}

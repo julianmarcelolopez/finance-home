@@ -1,0 +1,351 @@
+{
+  "name": "JULIAN - Visa Santander",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{}] } },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [-1056, 144],
+      "id": "sant-0001-sched",
+      "name": "Todos los dias 00 Hs"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "filters": {
+          "q": "subject:\"Santander Visa Resumen\" has:attachment -label:procesado-finanzas"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [-832, 144],
+      "id": "sant-0002-gmail-getall",
+      "name": "Get many messages1",
+      "webhookId": "sant-webhook-getall-001",
+      "alwaysOutputData": true,
+      "credentials": {
+        "gmailOAuth2": { "id": "xYdex51owLjBLhkN", "name": "PERSONAL Gmail lopez" }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "sant-cond-001",
+              "leftValue": "={{ Object.keys($json).length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [-608, 144],
+      "id": "sant-0003-if-messages",
+      "name": "If"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [-384, 240],
+      "id": "sant-0004-noop",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "simple": false,
+        "options": { "downloadAttachments": true }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [-384, 48],
+      "id": "sant-0005-gmail-get",
+      "name": "Download Attachments",
+      "webhookId": "sant-webhook-get-001",
+      "credentials": {
+        "gmailOAuth2": { "id": "xYdex51owLjBLhkN", "name": "PERSONAL Gmail lopez" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const binaryKeys = Object.keys(item.binary || {});\n  for (const key of binaryKeys) {\n    const bin = item.binary[key];\n    if (bin.mimeType === 'application/pdf') {\n      items.push({\n        json: { emailId: item.json.id, emailSubject: item.json.subject, emailDate: item.json.date, fileName: bin.fileName || key, mimeType: bin.mimeType },\n        binary: { data: bin }\n      });\n    }\n  }\n}\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-160, 48],
+      "id": "sant-0006-filter-pdf",
+      "name": "Filter PDF Attachments",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "operation": "pdf", "options": {} },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [64, 48],
+      "id": "sant-0007-extract-pdf",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}",
+        "options": {
+          "systemMessage": "Eres un agente de extracción de datos financieros.\nExtraés datos de resúmenes de tarjetas de crédito argentinas en formato PDF\ny devolvés ÚNICAMENTE un objeto JSON válido, sin texto adicional,\nsin markdown, sin explicaciones.\n\nExtraé la siguiente estructura:\n\n{\n  \"resumen\": {\n    \"banco\": string,\n    \"marca_tarjeta\": string,\n    \"titular\": string,\n    \"nro_resumen\": string,\n    \"nro_socio\": string,\n    \"cierre_actual\": \"YYYY-MM-DD\",\n    \"vencimiento_actual\": \"YYYY-MM-DD\",\n    \"total_pagar_pesos\": number,\n    \"total_pagar_dolares\": number\n  },\n  \"consumos\": [\n    {\n      \"fecha\": \"YYYY-MM-DD\",\n      \"referencia\": string,\n      \"comprobante\": string,\n      \"pesos\": number,\n      \"dolares\": number,\n      \"adicional\": string | null,\n      \"cuota_actual\": number | null,\n      \"cantidad_cuotas\": number | null\n    }\n  ]\n}\n\nReglas:\n- Las fechas deben convertirse a formato ISO YYYY-MM-DD.\n  Meses abreviados: Ene=01, Feb=02, Mar=03, Abr=04, May=05, Jun=06,\n  Jul=07, Ago=08, Sep=09, Oct=10, Nov=11, Dic=12.\n  El año en el resumen viene en formato de 2 dígitos (ej: \"28 May 26\" = 2026-05-28).\n- Todos los valores monetarios deben ser números sin separadores de miles,\n  usando punto como separador decimal. Ejemplo: 99.908,00 → 99908.00\n- Si un valor es 0 o no está presente, usar 0\n- banco: siempre \"Santander\"\n- marca_tarjeta: si aparece referencia a Platinum usar \"Visa Platinum\", si no usar \"Visa\"\n- titular: extraer en formato \"Apellido, Nombre\" con capitalización normal.\n  Ejemplo: \"LOPEZ JULIAN MARCEL\" → \"Lopez, Julian Marcel\"\n- nro_resumen: extraer el número del campo \"Resumen Nro.\" del encabezado.\n  Ejemplo: \"Resumen Nro. 1196099\" → \"1196099\"\n- nro_socio: extraer el valor del campo \"Número de Cuenta\" del encabezado.\n  Eliminar todos los guiones y espacios. Devolver solo dígitos.\n  Ejemplo: \"470887987\" → \"470887987\"\n- referencia: texto plano únicamente, sin markdown, sin corchetes, sin URLs.\n- comprobante: solo el número de comprobante (6 dígitos aprox).\n- cuota_actual y cantidad_cuotas: si el consumo tiene formato \"04/06\", extraer cuota_actual=4 y cantidad_cuotas=6. Si no tiene cuotas, usar null.\n- adicional: si el consumo pertenece a un titular adicional, colocar el nombre normalizado. Si no, null.\n- total_pagar_pesos: valor del campo \"SALDO ACTUAL\" en pesos.\n- total_pagar_dolares: valor del campo \"SALDO ACTUAL\" en dólares.\n- NO incluir pagos (SU PAGO EN PESOS), intereses ni subtotales en consumos.\n- Devolver únicamente el objeto JSON crudo, sin bloques de código ni texto extra."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [288, 48],
+      "id": "sant-0008-ai-agent",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4.1-mini",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [368, 272],
+      "id": "sant-0009-openai",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": { "id": "t4yOpCzBUFf9ZSbe", "name": "OpenAi AIVANCE" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const filterItems = $('Filter PDF Attachments').all();\n\nreturn $input.all().map((item, i) => {\n  const raw = item.json.output;\n  const parsed = JSON.parse(raw);\n  const emailId = filterItems[i]?.json?.emailId || null;\n\n  parsed.resumen.banco = 'Santander';\n\n  parsed.resumen.titular = parsed.resumen.titular\n    .split(',')\n    .map(p => p.trim().toLowerCase().replace(/\\b\\w/g, c => c.toUpperCase()))\n    .join(', ');\n\n  parsed.resumen.nro_socio = (parsed.resumen.nro_socio || '').replace(/[-\\s]/g, '');\n\n  if (!parsed.resumen.nro_resumen) {\n    parsed.resumen.nro_resumen = `NONUM-${parsed.resumen.nro_socio}-${parsed.resumen.cierre_actual}`;\n  }\n\n  parsed.consumos = parsed.consumos.map(c => ({\n    ...c,\n    referencia: c.referencia.replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g, '$1').trim(),\n    comprobante: c.comprobante.trim().split(/\\s+/).pop()\n  }));\n\n  return { json: { emailId, resumen: parsed.resumen, consumos: parsed.consumos } };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 48],
+      "id": "sant-0010-json-parse",
+      "name": "JSON Parse"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "tarjetas",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "={{ 'nro_socio=eq.' + $json.resumen.nro_socio }}"
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [864, 48],
+      "id": "sant-0011-buscar-tarjeta",
+      "name": "Buscar tarjeta",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": { "id": "UH5di8hnZb06EOcj", "name": "LOPEZAZAME Supabase credential" }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "sant-cond-tarjeta",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1088, 48],
+      "id": "sant-0012-if-tarjeta",
+      "name": "¿Existe tarjeta?"
+    },
+    {
+      "parameters": {
+        "tableId": "tarjetas",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "banco",    "fieldValue": "={{ $('JSON Parse').first().json.resumen.banco }}" },
+            { "fieldId": "marca",    "fieldValue": "={{ $('JSON Parse').first().json.resumen.marca_tarjeta.split(' ')[0] }}" },
+            { "fieldId": "nro_cuenta","fieldValue": "={{ $('JSON Parse').first().json.resumen.nro_socio }}" },
+            { "fieldId": "nro_socio","fieldValue": "={{ $('JSON Parse').first().json.resumen.nro_socio }}" },
+            { "fieldId": "titular",  "fieldValue": "Julian" },
+            { "fieldId": "activo",   "fieldValue": "=true" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1312, 280],
+      "id": "sant-0013-crear-tarjeta",
+      "name": "Auto-crear tarjeta",
+      "credentials": {
+        "supabaseApi": { "id": "UH5di8hnZb06EOcj", "name": "LOPEZAZAME Supabase credential" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const tarjeta = $input.first().json;\nconst jsonParseItems = $('JSON Parse').all();\n\nreturn jsonParseItems.map(item => ({\n  json: { ...item.json, tarjeta_id: tarjeta.id || null }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1536, 48],
+      "id": "sant-0014-merge-tarjeta-id",
+      "name": "Merge tarjeta_id"
+    },
+    {
+      "parameters": {
+        "tableId": "resumenes_tarjeta",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "banco",               "fieldValue": "={{ $json.resumen.banco }}" },
+            { "fieldId": "marca_tarjeta",        "fieldValue": "={{ $json.resumen.marca_tarjeta }}" },
+            { "fieldId": "titular",              "fieldValue": "={{ $json.resumen.titular }}" },
+            { "fieldId": "nro_resumen",          "fieldValue": "={{ $json.resumen.nro_resumen }}" },
+            { "fieldId": "cierre_actual",        "fieldValue": "={{ $json.resumen.cierre_actual }}" },
+            { "fieldId": "vencimiento_actual",   "fieldValue": "={{ $json.resumen.vencimiento_actual }}" },
+            { "fieldId": "total_pagar_pesos",    "fieldValue": "={{ $json.resumen.total_pagar_pesos }}" },
+            { "fieldId": "total_pagar_dolares",  "fieldValue": "={{ $json.resumen.total_pagar_dolares }}" },
+            { "fieldId": "tarjeta_id",           "fieldValue": "={{ $json.tarjeta_id }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1760, 48],
+      "id": "sant-0015-insert-resumen",
+      "name": "Insert resumen",
+      "continueOnFail": true,
+      "credentials": {
+        "supabaseApi": { "id": "UH5di8hnZb06EOcj", "name": "LOPEZAZAME Supabase credential" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const resumenes = $input.all();\nconst jsonParseItems = $('JSON Parse').all();\n\nreturn resumenes.map((item, i) => {\n  const resumenId = item.json.id || null;\n  const emailId = jsonParseItems[i]?.json?.emailId || null;\n  const consumos = resumenId ? (jsonParseItems[i]?.json?.consumos || []) : [];\n  return { json: { ...item.json, id: resumenId, consumos, emailId } };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1984, 48],
+      "id": "sant-0016-merge-consumos",
+      "name": "Merge Consumos"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const resumenId = item.json.id;\n  const nro_resumen = item.json.nro_resumen;\n  const consumos = item.json.consumos;\n  if (!consumos) continue;\n  for (const c of consumos) {\n    items.push({\n      json: {\n        resumen_id: resumenId, nro_resumen, fecha: c.fecha, referencia: c.referencia,\n        comprobante: c.comprobante, pesos: c.pesos, dolares: c.dolares,\n        adicional: c.adicional, cuota_actual: c.cuota_actual ?? null, cantidad_cuotas: c.cantidad_cuotas ?? null\n      },\n      pairedItem: { item: $input.all().indexOf(item) }\n    });\n  }\n}\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2208, 48],
+      "id": "sant-0017-prep-consumos",
+      "name": "Preparar Consumos",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "tableId": "consumos_tarjeta",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "resumen_id",      "fieldValue": "={{ $json.resumen_id }}" },
+            { "fieldId": "fecha",           "fieldValue": "={{ $json.fecha }}" },
+            { "fieldId": "referencia",      "fieldValue": "={{ $json.referencia }}" },
+            { "fieldId": "comprobante",     "fieldValue": "={{ $json.comprobante }}" },
+            { "fieldId": "pesos",           "fieldValue": "={{ $json.pesos }}" },
+            { "fieldId": "dolares",         "fieldValue": "={{ $json.dolares }}" },
+            { "fieldId": "adicional",       "fieldValue": "={{ $json.adicional }}" },
+            { "fieldId": "nro_resumen",     "fieldValue": "={{ $json.nro_resumen }}" },
+            { "fieldId": "cuota_actual",    "fieldValue": "={{ $json.cuota_actual }}" },
+            { "fieldId": "cantidad_cuotas", "fieldValue": "={{ $json.cantidad_cuotas }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [2432, 48],
+      "id": "sant-0018-insert-consumos",
+      "name": "Insert consumos",
+      "credentials": {
+        "supabaseApi": { "id": "UH5di8hnZb06EOcj", "name": "LOPEZAZAME Supabase credential" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const mergeItems = $('Merge Consumos').all();\nconst emailIds = [...new Set(mergeItems.map(i => i.json.emailId))];\nreturn emailIds.map(emailId => ({ json: { emailId } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2656, 48],
+      "id": "sant-0019-get-email-id",
+      "name": "Obtener emailId",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.emailId }}",
+        "labelIds": ["Label_1480986065077129675"]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [2880, 48],
+      "id": "sant-0020-add-label",
+      "name": "Add label to message",
+      "webhookId": "sant-webhook-label-002",
+      "credentials": {
+        "gmailOAuth2": { "id": "xYdex51owLjBLhkN", "name": "PERSONAL Gmail lopez" }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Todos los dias 00 Hs":  { "main": [[{ "node": "Get many messages1",   "type": "main", "index": 0 }]] },
+    "Get many messages1":    { "main": [[{ "node": "If",                   "type": "main", "index": 0 }]] },
+    "If": {
+      "main": [
+        [{ "node": "Download Attachments",    "type": "main", "index": 0 }],
+        [{ "node": "No Operation, do nothing","type": "main", "index": 0 }]
+      ]
+    },
+    "Download Attachments":  { "main": [[{ "node": "Filter PDF Attachments","type": "main", "index": 0 }]] },
+    "Filter PDF Attachments":{ "main": [[{ "node": "Extract from File",     "type": "main", "index": 0 }]] },
+    "Extract from File":     { "main": [[{ "node": "AI Agent",              "type": "main", "index": 0 }]] },
+    "OpenAI Chat Model":     { "ai_languageModel": [[{ "node": "AI Agent",  "type": "ai_languageModel", "index": 0 }]] },
+    "AI Agent":              { "main": [[{ "node": "JSON Parse",            "type": "main", "index": 0 }]] },
+    "JSON Parse":            { "main": [[{ "node": "Buscar tarjeta",        "type": "main", "index": 0 }]] },
+    "Buscar tarjeta":        { "main": [[{ "node": "¿Existe tarjeta?",      "type": "main", "index": 0 }]] },
+    "¿Existe tarjeta?": {
+      "main": [
+        [{ "node": "Merge tarjeta_id",   "type": "main", "index": 0 }],
+        [{ "node": "Auto-crear tarjeta", "type": "main", "index": 0 }]
+      ]
+    },
+    "Auto-crear tarjeta":    { "main": [[{ "node": "Merge tarjeta_id",     "type": "main", "index": 0 }]] },
+    "Merge tarjeta_id":      { "main": [[{ "node": "Insert resumen",       "type": "main", "index": 0 }]] },
+    "Insert resumen":        { "main": [[{ "node": "Merge Consumos",       "type": "main", "index": 0 }]] },
+    "Merge Consumos":        { "main": [[{ "node": "Preparar Consumos",    "type": "main", "index": 0 }]] },
+    "Preparar Consumos":     { "main": [[{ "node": "Insert consumos",      "type": "main", "index": 0 }]] },
+    "Insert consumos":       { "main": [[{ "node": "Obtener emailId",      "type": "main", "index": 0 }]] },
+    "Obtener emailId":       { "main": [[{ "node": "Add label to message", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "sant-v2-autocreate-tarjeta",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "899fc01a54a327346d11fc49cb161319204e3aee2c033bb652ab72dadf0d56bb"
+  },
+  "id": "SANTvisaJULIAN001",
+  "tags": []
+}

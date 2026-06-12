@@ -1,0 +1,624 @@
+{
+  "name": "JULIAN - Mastercard ICBC",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "simple": false,
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -384,
+        48
+      ],
+      "id": "bd76c2dd-40e2-44bb-91f0-6e9c7a2c1924",
+      "name": "Download Attachments",
+      "webhookId": "fa1a7576-575d-44c3-8b47-761d94b302ba",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "xYdex51owLjBLhkN",
+          "name": "PERSONAL Gmail lopez"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\n\nfor (const item of $input.all()) {\n  const binaryKeys = Object.keys(item.binary || {});\n  \n  for (const key of binaryKeys) {\n    const bin = item.binary[key];\n    if (bin.mimeType === 'application/pdf') {\n      items.push({\n        json: {\n          emailId: item.json.id,\n          emailSubject: item.json.subject,\n          emailDate: item.json.date,\n          fileName: bin.fileName || key,\n          mimeType: bin.mimeType\n        },\n        binary: {\n          data: bin\n        }\n      });\n    }\n  }\n}\n\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        48
+      ],
+      "id": "5da72b57-05fb-43ca-97b7-df990fb7420b",
+      "name": "Filter PDF Attachments",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}",
+        "options": {
+          "systemMessage": "Eres un agente de extracción de datos financieros. \nExtraés datos de resúmenes de tarjetas de crédito argentinas en formato PDF \ny devolvés ÚNICAMENTE un objeto JSON válido, sin texto adicional, \nsin markdown, sin explicaciones.\n\nExtraé la siguiente estructura:\n\n{\n  \"resumen\": {\n    \"banco\": string,\n    \"marca_tarjeta\": string,\n    \"titular\": string,\n    \"nro_resumen\": string,\n    \"nro_socio\": string,\n    \"cierre_actual\": \"YYYY-MM-DD\",\n    \"vencimiento_actual\": \"YYYY-MM-DD\",\n    \"total_pagar_pesos\": number,\n    \"total_pagar_dolares\": number\n  },\n  \"consumos\": [\n    {\n      \"fecha\": \"YYYY-MM-DD\",\n      \"referencia\": string,\n      \"comprobante\": string,\n      \"pesos\": number,\n      \"dolares\": number,\n      \"adicional\": string | null,\n      \"cuota_actual\": number | null,\n      \"cantidad_cuotas\": number | null\n    }\n  ]\n}\n\nReglas:\n- Las fechas deben convertirse a formato ISO YYYY-MM-DD.\n  Meses abreviados: Ene=01, Feb=02, Mar=03, Abr=04, May=05, Jun=06,\n  Jul=07, Ago=08, Sep=09, Oct=10, Nov=11, Dic=12\n- Todos los valores monetarios deben ser números sin separadores de miles,\n  usando punto como separador decimal. Ejemplo: 684.044,99 → 684044.99\n- Si un valor es 0 o no está presente, usar 0\n- banco: extraer el nombre comercial del banco (ej: \"Galicia\", \"Santander\", \n  \"ICBC\"), NO el CUIT ni número de entidad. Si el CUIT es \"30-50000173-5\" \n  o no podés identificar el banco, usar \"Galicia\"\n- marca_tarjeta: extraer marca y tipo en formato título (ej: \"Mastercard Black\",\n  \"Mastercard Internacional\", \"Visa Gold\")\n- titular: extraer en formato \"Apellido, Nombre\" con capitalización normal,\n  no en mayúsculas. Ejemplo: \"LOPEZ,JULIAN MARCE\" → \"Lopez, Julian Marce\"\n- referencia: texto plano únicamente, sin markdown, sin corchetes, \n  sin URLs, sin paréntesis. Ejemplo: \"WWW.JULERIAQUE.COM.AR 10/10\"\n- comprobante: solo el número de comprobante, sin cuotas ni texto adicional.\n  Ejemplo: \"10/18 04908\" → \"04908\"\n- cuota_actual y cantidad_cuotas: si el consumo tiene formato de cuotas \"04/06\",\n  extraer cuota_actual=4 y cantidad_cuotas=6.\n  Si es una compra sin cuotas, usar null en ambos campos.\n- adicional: si el consumo pertenece a un titular adicional (aparece bajo \n  \"TOTAL ADICIONAL DE AZAME,PATRICIA\"), colocar el nombre normalizado\n  (ej: \"Azame, Patricia\"). Si no, null\n- Incluir TODOS los consumos bajo \"COMPRAS DEL MES\", \"CUOTAS DEL MES\" \n  y de tarjetas adicionales\n- NO incluir filas de pagos (SU PAGO), intereses, ni subtotales en consumos\n- Devolver únicamente el objeto JSON crudo, sin bloques de código,\n  sin ningún texto antes ni después\n- nro_socio: extraer el campo \"Número de Socio\", \"Nro de Socio\" o \"N° de Socio\" del encabezado del resumen. Eliminar todos los guiones. Devolver solo dígitos.\n  Ejemplo: \"015-001747133-0-0\" → \"01500174713300\"\n  Ejemplo: \"201252-0-7\" → \"20125207\"\n- nro_resumen: buscar en el encabezado del resumen cualquiera de estas etiquetas:\n  \"Número de Resumen\", \"Nro de Resumen\", \"N° de Resumen\", \"Nro Resumen\",\n  \"Número de Liquidación\", \"Nro de Liquidación\", \"N° Liquidación\",\n  \"Número de Comprobante\", \"Nro Comprobante\", \"Resumen N°\", \"Resumen Nro\".\n  Extraer solo el valor numérico o alfanumérico. Si no encontrás ninguna de\n  estas etiquetas, devolver string vacío \"\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        288,
+        48
+      ],
+      "id": "f3742a1b-2237-4568-be86-7ee2e515b02a",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        368,
+        272
+      ],
+      "id": "a701a89a-07d5-4de0-b3f7-51447bf31d7b",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "t4yOpCzBUFf9ZSbe",
+          "name": "OpenAi AIVANCE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        64,
+        48
+      ],
+      "id": "77804635-a26c-452f-8730-a4b7f8863af1",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const filterItems = $('Filter PDF Attachments').all();\n\nreturn $input.all().map((item, i) => {\n  const raw = item.json.output;\n  const parsed = JSON.parse(raw);\n\n  const emailId = filterItems[i]?.json?.emailId || null;\n\n  // normalizar banco\n  if (!parsed.resumen.banco || \n      ['Desconocido', 'Banco', ''].includes(parsed.resumen.banco)) {\n    parsed.resumen.banco = 'Galicia';\n  }\n\n  // normalizar titular\n  parsed.resumen.titular = parsed.resumen.titular\n    .split(',')\n    .map(p => p.trim().toLowerCase().replace(/\\b\\w/g, c => c.toUpperCase()))\n    .join(', ');\n\n  // strip guiones de nro_socio\n  parsed.resumen.nro_socio = (parsed.resumen.nro_socio || '').replace(/-/g, '');\n\n  // fallback: construir nro_resumen desde socio+cierre si el AI no lo encontró\n  if (!parsed.resumen.nro_resumen) {\n    parsed.resumen.nro_resumen = `NONUM-${parsed.resumen.nro_socio}-${parsed.resumen.cierre_actual}`;\n  }\n\n  // limpiar consumos\n  parsed.consumos = parsed.consumos.map(c => ({\n    ...c,\n    referencia: c.referencia.replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g, '$1').trim(),\n    comprobante: c.comprobante.trim().split(/\\s+/).pop()\n  }));\n  \n  return { \n    json: { \n      emailId,\n      resumen: parsed.resumen, \n      consumos: parsed.consumos \n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        48
+      ],
+      "id": "600f2ad3-30a9-45e1-8674-22f4285e59dd",
+      "name": "JSON Parse"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\n\nfor (const item of $input.all()) {\n  const resumenId = item.json.id;\n  const nro_resumen = item.json.nro_resumen;\n  const consumos = item.json.consumos;\n\n  if (!consumos) continue;\n\n  for (const c of consumos) {\n    items.push({\n      json: {\n        resumen_id: resumenId,\n        nro_resumen: nro_resumen,\n        fecha: c.fecha,\n        referencia: c.referencia,\n        comprobante: c.comprobante,\n        pesos: c.pesos,\n        dolares: c.dolares,\n        adicional: c.adicional,\n        cuota_actual: c.cuota_actual ?? null,\n        cantidad_cuotas: c.cantidad_cuotas ?? null\n      },\n      pairedItem: { item: $input.all().indexOf(item) }\n    });\n  }\n}\n\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        48
+      ],
+      "id": "c7d3c205-e959-4f8a-b20c-1fb499036e4c",
+      "name": "Preparar Consumos",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "tableId": "resumenes_tarjeta",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "banco",
+              "fieldValue": "={{ $json.resumen.banco }}"
+            },
+            {
+              "fieldId": "marca_tarjeta",
+              "fieldValue": "={{ $json.resumen.marca_tarjeta }}"
+            },
+            {
+              "fieldId": "titular",
+              "fieldValue": "={{ $json.resumen.titular }}"
+            },
+            {
+              "fieldId": "nro_resumen",
+              "fieldValue": "={{ $json.resumen.nro_resumen }}"
+            },
+            {
+              "fieldId": "cierre_actual",
+              "fieldValue": "={{ $json.resumen.cierre_actual }}"
+            },
+            {
+              "fieldId": "vencimiento_actual",
+              "fieldValue": "={{ $json.resumen.vencimiento_actual }}"
+            },
+            {
+              "fieldId": "total_pagar_pesos",
+              "fieldValue": "={{ $json.resumen.total_pagar_pesos }}"
+            },
+            {
+              "fieldId": "total_pagar_dolares",
+              "fieldValue": "={{ $json.resumen.total_pagar_dolares }}"
+            },
+            {
+              "fieldId": "tarjeta_id",
+              "fieldValue": "={{ $json.tarjeta_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1312,
+        48
+      ],
+      "id": "f16cf0e5-c348-4a98-85f0-a0aba3442336",
+      "name": "Insert resumen",
+      "continueOnFail": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "UH5di8hnZb06EOcj",
+          "name": "LOPEZAZAME Supabase credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "consumos_tarjeta",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "resumen_id",
+              "fieldValue": "={{ $json.resumen_id }}"
+            },
+            {
+              "fieldId": "fecha",
+              "fieldValue": "={{ $json.fecha }}"
+            },
+            {
+              "fieldId": "referencia",
+              "fieldValue": "={{ $json.referencia }}"
+            },
+            {
+              "fieldId": "comprobante",
+              "fieldValue": "={{ $json.comprobante }}"
+            },
+            {
+              "fieldId": "pesos",
+              "fieldValue": "={{ $json.pesos }}"
+            },
+            {
+              "fieldId": "dolares",
+              "fieldValue": "={{ $json.dolares }}"
+            },
+            {
+              "fieldId": "adicional",
+              "fieldValue": "={{ $json.adicional }}"
+            },
+            {
+              "fieldId": "nro_resumen",
+              "fieldValue": "={{ $json.nro_resumen }}"
+            },
+            {
+              "fieldId": "cuota_actual",
+              "fieldValue": "={{ $json.cuota_actual }}"
+            },
+            {
+              "fieldId": "cantidad_cuotas",
+              "fieldValue": "={{ $json.cantidad_cuotas }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1536,
+        48
+      ],
+      "id": "184018df-73e1-48bf-8d3a-6b4903297ebe",
+      "name": "Insert consumos",
+      "credentials": {
+        "supabaseApi": {
+          "id": "UH5di8hnZb06EOcj",
+          "name": "LOPEZAZAME Supabase credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const resumenes = $input.all();\nconst jsonParseItems = $('JSON Parse').all();\n\nreturn resumenes.map((item, i) => {\n  const resumenId = item.json.id || null;\n  const emailId = jsonParseItems[i]?.json?.emailId || null;\n  // si Insert resumen falló (duplicado u otro error), no reinsertamos consumos\n  const consumos = resumenId ? (jsonParseItems[i]?.json?.consumos || []) : [];\n  return {\n    json: {\n      ...item.json,\n      id: resumenId,\n      consumos,\n      emailId\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        48
+      ],
+      "id": "7e54f55c-2748-4a83-a45e-fa65f76122f7",
+      "name": "Merge Consumos"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.emailId }}",
+        "labelIds": [
+          "Label_1480986065077129675"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1984,
+        48
+      ],
+      "id": "ee037a83-bdff-4f08-9c2f-a6af454a42fd",
+      "name": "Add label to message",
+      "webhookId": "834033fa-69c3-4062-9e23-6f4d5d79d37e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "xYdex51owLjBLhkN",
+          "name": "PERSONAL Gmail lopez"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const insertedItems = $input.all();\nconst mergeItems = $('Merge Consumos').all();\n\n// Agrupar emailIds únicos en orden (un email puede tener muchos consumos)\nconst emailIds = [...new Set(mergeItems.map(i => i.json.emailId))];\n\n// Devolver uno por emailId para labelear cada email una sola vez\nreturn emailIds.map(emailId => ({\n  json: { emailId }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        48
+      ],
+      "id": "2f1479d5-9a18-4e00-87e5-67f984255cc8",
+      "name": "Obtener emailId",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "aab02b70-8114-4f19-a281-27402429b4c0",
+              "leftValue": "={{ Object.keys($json).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -608,
+        144
+      ],
+      "id": "c86d3103-a983-40d1-8a22-cdfbd83c02f2",
+      "name": "If"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -384,
+        240
+      ],
+      "id": "ee500d20-fecc-4299-9d3c-e91bbfe24d4a",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1056,
+        144
+      ],
+      "id": "25952738-f481-4299-9e13-0aef79453dba",
+      "name": "Todos los dias 00 Hs"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {
+          "q": "subject:\"ICBC ERESUMEN\" has:attachment -label:procesado-finanzas"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -832,
+        144
+      ],
+      "id": "91c55415-39ad-45f5-90c4-4ce23c6e3cfa",
+      "name": "Get messages",
+      "webhookId": "0e980729-13da-4071-b28a-0a21db273246",
+      "alwaysOutputData": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "xYdex51owLjBLhkN",
+          "name": "PERSONAL Gmail lopez"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "tarjetas",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "manual",
+        "filtersUI": {
+          "values": [
+            {
+              "condition": "eq",
+              "keyName": "nro_socio",
+              "keyValue": "={{ $json.resumen.nro_socio }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [864, 48],
+      "id": "a1b2c3d4-0001-0001-0001-icbc00000001",
+      "name": "Buscar tarjeta",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "UH5di8hnZb06EOcj",
+          "name": "LOPEZAZAME Supabase credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const jsonParseItems = $('JSON Parse').all();\n\nreturn $input.all().map((item, i) => {\n  const original = jsonParseItems[i]?.json || {};\n  const expectedNroSocio = original.resumen?.nro_socio || '';\n  const foundNroSocio = item.json.nro_socio || '';\n  // solo usar tarjeta_id si el nro_socio realmente coincide\n  const tarjetaId = (expectedNroSocio && foundNroSocio === expectedNroSocio)\n    ? (item.json.id || null)\n    : null;\n  return {\n    json: {\n      ...original,\n      tarjeta_id: tarjetaId\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1088, 48],
+      "id": "a1b2c3d4-0001-0001-0001-icbc00000002",
+      "name": "Merge tarjeta_id"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Download Attachments": {
+      "main": [
+        [
+          {
+            "node": "Filter PDF Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter PDF Attachments": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "JSON Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JSON Parse": {
+      "main": [
+        [
+          {
+            "node": "Buscar tarjeta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar tarjeta": {
+      "main": [
+        [
+          {
+            "node": "Merge tarjeta_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge tarjeta_id": {
+      "main": [
+        [
+          {
+            "node": "Insert resumen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Consumos": {
+      "main": [
+        [
+          {
+            "node": "Insert consumos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert resumen": {
+      "main": [
+        [
+          {
+            "node": "Merge Consumos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Consumos": {
+      "main": [
+        [
+          {
+            "node": "Preparar Consumos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert consumos": {
+      "main": [
+        [
+          {
+            "node": "Obtener emailId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener emailId": {
+      "main": [
+        [
+          {
+            "node": "Add label to message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Download Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Todos los dias 00 Hs": {
+      "main": [
+        [
+          {
+            "node": "Get messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get messages": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "132ed0ca-57a2-4df5-ac3a-d53686876deb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "899fc01a54a327346d11fc49cb161319204e3aee2c033bb652ab72dadf0d56bb"
+  },
+  "id": "cGTd0yNtqbnqO8F7",
+  "tags": []
+}
