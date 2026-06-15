@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
 import { supabaseAdmin } from '../services/supabase'
 import { getTipoCambio } from '../services/tipo-cambio'
-import { DashboardResumen } from '@financehome/shared'
+import type { DashboardResumen, ProximaCuotaPrestamo } from '@financehome/shared'
 
 const router = Router()
 
@@ -28,7 +28,7 @@ router.get('/resumen', async (_req, res) => {
     const inicioMes = format(startOfMonth(now), 'yyyy-MM-dd')
     const finMes = format(endOfMonth(now), 'yyyy-MM-dd')
 
-    const [consumosRes, gastosFijosRes, resumenesRes, proyectosRes, tipoCambio] =
+    const [consumosRes, gastosFijosRes, resumenesRes, proyectosRes, proximaCuotaRes, tipoCambio] =
       await Promise.all([
         supabaseAdmin
           .from('consumos_tarjeta')
@@ -49,6 +49,14 @@ router.get('/resumen', async (_req, res) => {
           .from('proyectos')
           .select('id', { count: 'exact', head: true }),
 
+        supabaseAdmin
+          .from('cuotas_prestamo')
+          .select('prestamo_id, numero_cuota, fecha_vencimiento, monto_total, prestamos!inner(banco, tipo, persona)')
+          .eq('pagada', false)
+          .eq('prestamos.activo', true)
+          .order('fecha_vencimiento', { ascending: true })
+          .limit(1),
+
         getTipoCambio(),
       ])
 
@@ -61,6 +69,25 @@ router.get('/resumen', async (_req, res) => {
         return a + monto
       }, 0) ?? 0
 
+    let proxima_cuota_prestamo: ProximaCuotaPrestamo | null = null
+    if (proximaCuotaRes.data?.length) {
+      const c = proximaCuotaRes.data[0] as any
+      const { count } = await supabaseAdmin
+        .from('cuotas_prestamo')
+        .select('*', { count: 'exact', head: true })
+        .eq('prestamo_id', c.prestamo_id)
+
+      proxima_cuota_prestamo = {
+        banco: c.prestamos.banco,
+        tipo: c.prestamos.tipo,
+        persona: c.prestamos.persona,
+        numero_cuota: c.numero_cuota,
+        total_cuotas: count ?? 0,
+        fecha_vencimiento: c.fecha_vencimiento,
+        monto_total: c.monto_total,
+      }
+    }
+
     const resumen: DashboardResumen = {
       mes_actual: mesActual,
       total_consumos_pesos: totalConsumosPesos,
@@ -69,6 +96,7 @@ router.get('/resumen', async (_req, res) => {
       proyectos_activos: proyectosRes.count ?? 0,
       proximos_vencimientos: resumenesRes.data ?? [],
       tipo_cambio: tipoCambio,
+      proxima_cuota_prestamo,
     }
 
     res.json(resumen)

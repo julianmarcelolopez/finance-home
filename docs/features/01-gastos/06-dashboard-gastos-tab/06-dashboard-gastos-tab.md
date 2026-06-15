@@ -2,11 +2,18 @@
 
 ## Descripción
 
-Tab "Dashboard" como primera pantalla dentro de Gastos. Contiene dos sub-tabs: **Mes actual** (vista por defecto, siempre muestra el mes en curso) y **Semestre** (barras de los últimos 6 meses con drill-down al mes seleccionado).
+Tab "Dashboard" como primera pantalla dentro de Gastos. Contiene tres sub-tabs: **Mes actual** (navegación mes a mes), **Semestre 1** (ene–jun, tabla pivot) y **Semestre 2** (jul–dic, tabla pivot).
 
 ## Estado
 
-[ ] Pendiente
+**Completo — 2026-06-15**
+
+| Sub-doc | Descripción | Estado |
+|---------|-------------|--------|
+| [01-mes-actual](./01-mes-actual.md) | Detalle del mes: por origen, categorías, top 5, tabla | Completo |
+| [02-navegacion-mes](./02-navegacion-mes.md) | Botones `← [mes] →` en "Mes actual" | Completo |
+| [03-fix-periodo-tarjetas](./03-fix-periodo-tarjetas.md) | Período usa vencimiento, no cierre | Completo |
+| [04-vista-semestral-pivot](./04-vista-semestral-pivot.md) | Tabla pivot Semestre 1 / Semestre 2 | Completo |
 
 ## Estructura de navegación
 

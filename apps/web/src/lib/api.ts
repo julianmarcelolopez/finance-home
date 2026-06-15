@@ -16,6 +16,11 @@ import type {
   ComercioCategoria,
   DetalleMes,
   ResumenSemestral,
+  SemestreResumen,
+  Prestamo,
+  CuotaPrestamo,
+  PrestamoConCuotasCreate,
+  CuotaMesResumen,
 } from '@financehome/shared'
 
 const http = axios.create({
@@ -114,5 +119,22 @@ export const api = {
       http.get<DetalleMes>('/api/gastos-dashboard/mes', { params: { mes } }).then((r) => r.data),
     semestral: () =>
       http.get<ResumenSemestral[]>('/api/gastos-dashboard/semestral').then((r) => r.data),
+    semestre: (año: number, semestre: 1 | 2) =>
+      http.get<SemestreResumen>('/api/gastos-dashboard/semestre', { params: { año, semestre } }).then((r) => r.data),
+  },
+
+  prestamos: {
+    listar: (params?: { persona?: string }) =>
+      http.get<Prestamo[]>('/api/prestamos', { params }).then((r) => r.data),
+    obtener: (id: string) =>
+      http.get<Prestamo>(`/api/prestamos/${id}`).then((r) => r.data),
+    crear: (body: PrestamoConCuotasCreate) =>
+      http.post<{ prestamo: Prestamo; cuotas: CuotaPrestamo[] }>('/api/prestamos', body).then((r) => r.data),
+    actualizar: (id: string, body: Partial<Prestamo>) =>
+      http.patch<Prestamo>(`/api/prestamos/${id}`, body).then((r) => r.data),
+    cuotasMes: (mes: string) =>
+      http.get<CuotaMesResumen[]>('/api/prestamos/cuotas-mes', { params: { mes } }).then((r) => r.data),
+    actualizarCuota: (id: string, cuotaId: string, body: { pagada?: boolean; monto_total?: number }) =>
+      http.patch<CuotaPrestamo>(`/api/prestamos/${id}/cuotas/${cuotaId}`, body).then((r) => r.data),
   },
 }

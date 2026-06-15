@@ -1,0 +1,486 @@
+{
+	"info": {
+		"_postman_id": "f22fae7f-c662-4f36-ab7c-d67c1bea37bc",
+		"name": "MercadoPago - FinanceHome",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Movimientos del mes actual",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/account/movements/search?limit=50&offset=0",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"v1",
+						"account",
+						"movements",
+						"search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "50"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "1. Movimientos del mes actual Copy",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/account/movements/search?limit=50&offset=0",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"v1",
+						"account",
+						"movements",
+						"search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "50"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "2. Movimientos filtrados por fecha (junio 2026)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/account/movements/search?begin_date=2026-06-01T00:00:00Z&end_date=2026-06-30T23:59:59Z&limit=50&offset=0",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"v1",
+						"account",
+						"movements",
+						"search"
+					],
+					"query": [
+						{
+							"key": "begin_date",
+							"value": "2026-06-01T00:00:00Z"
+						},
+						{
+							"key": "end_date",
+							"value": "2026-06-30T23:59:59Z"
+						},
+						{
+							"key": "limit",
+							"value": "50"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3. Movimientos filtrados por mes anterior (mayo 2026)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/account/movements/search?begin_date=2026-05-01T00:00:00Z&end_date=2026-05-31T23:59:59Z&limit=50&offset=0",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"v1",
+						"account",
+						"movements",
+						"search"
+					],
+					"query": [
+						{
+							"key": "begin_date",
+							"value": "2026-05-01T00:00:00Z"
+						},
+						{
+							"key": "end_date",
+							"value": "2026-05-31T23:59:59Z"
+						},
+						{
+							"key": "limit",
+							"value": "50"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "4. Pagos realizados (gastos con tarjeta MP)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/payments/search?begin_date=2026-06-01T00:00:00Z&end_date=2026-06-30T23:59:59Z&sort=date_created&criteria=desc&limit=50",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"v1",
+						"payments",
+						"search"
+					],
+					"query": [
+						{
+							"key": "begin_date",
+							"value": "2026-06-01T00:00:00Z"
+						},
+						{
+							"key": "end_date",
+							"value": "2026-06-30T23:59:59Z"
+						},
+						{
+							"key": "sort",
+							"value": "date_created"
+						},
+						{
+							"key": "criteria",
+							"value": "desc"
+						},
+						{
+							"key": "limit",
+							"value": "50"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "5. Info de mi cuenta (verificar token)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/v1/account",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"v1",
+						"account"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "https://api.mercadopago.com/users/me",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer APP_USR-8397918122887426-060623-041b00417afb02fbaaae6523710b49bb-3454771983"
+					}
+				],
+				"url": {
+					"raw": "https://api.mercadopago.com/users/me",
+					"protocol": "https",
+					"host": [
+						"api",
+						"mercadopago",
+						"com"
+					],
+					"path": [
+						"users",
+						"me"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "PAYMENTS https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&limit=10",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer APP_USR-5893369803709874-060623-57a6bee839a7951f0ddf2816f4d8f872-145197606"
+					}
+				],
+				"url": {
+					"raw": "https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&limit=10",
+					"protocol": "https",
+					"host": [
+						"api",
+						"mercadopago",
+						"com"
+					],
+					"path": [
+						"v1",
+						"payments",
+						"search"
+					],
+					"query": [
+						{
+							"key": "sort",
+							"value": "date_created"
+						},
+						{
+							"key": "criteria",
+							"value": "desc"
+						},
+						{
+							"key": "limit",
+							"value": "10"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "PAYMENTS MONTH https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&limit=50&begin_date=2026-06-01T00:00:00Z&end_date=2026-06-30T23:59:59Z",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}"
+					}
+				],
+				"url": {
+					"raw": "https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&operation_type=regular_payment&begin_date=2026-06-01T00:00:00Z&end_date=2026-06-30T23:59:59Z",
+					"protocol": "https",
+					"host": [
+						"api",
+						"mercadopago",
+						"com"
+					],
+					"path": [
+						"v1",
+						"payments",
+						"search"
+					],
+					"query": [
+						{
+							"key": "sort",
+							"value": "date_created"
+						},
+						{
+							"key": "criteria",
+							"value": "desc"
+						},
+						{
+							"key": "operation_type",
+							"value": "regular_payment"
+						},
+						{
+							"key": "begin_date",
+							"value": "2026-06-01T00:00:00Z"
+						},
+						{
+							"key": "end_date",
+							"value": "2026-06-30T23:59:59Z"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "PAYMENTS - Movimientos de cuenta",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}"
+					}
+				],
+				"url": {
+					"raw": "https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&operation_type=regular_payment&payment_type_id=account_money&begin_date=2026-06-01T00:00:00Z&end_date=2026-06-30T23:59:59Z",
+					"protocol": "https",
+					"host": [
+						"api",
+						"mercadopago",
+						"com"
+					],
+					"path": [
+						"v1",
+						"payments",
+						"search"
+					],
+					"query": [
+						{
+							"key": "sort",
+							"value": "date_created"
+						},
+						{
+							"key": "criteria",
+							"value": "desc"
+						},
+						{
+							"key": "operation_type",
+							"value": "regular_payment"
+						},
+						{
+							"key": "payment_type_id",
+							"value": "account_money"
+						},
+						{
+							"key": "begin_date",
+							"value": "2026-06-01T00:00:00Z"
+						},
+						{
+							"key": "end_date",
+							"value": "2026-06-30T23:59:59Z"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "PAYMENTS - Movimientos de TC",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}"
+					}
+				],
+				"url": {
+					"raw": "https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&operation_type=regular_payment&payment_type_id=account_money&begin_date=2026-06-01T00:00:00Z&end_date=2026-06-30T23:59:59Z",
+					"protocol": "https",
+					"host": [
+						"api",
+						"mercadopago",
+						"com"
+					],
+					"path": [
+						"v1",
+						"payments",
+						"search"
+					],
+					"query": [
+						{
+							"key": "sort",
+							"value": "date_created"
+						},
+						{
+							"key": "criteria",
+							"value": "desc"
+						},
+						{
+							"key": "operation_type",
+							"value": "regular_payment"
+						},
+						{
+							"key": "payment_type_id",
+							"value": "account_money"
+						},
+						{
+							"key": "begin_date",
+							"value": "2026-06-01T00:00:00Z"
+						},
+						{
+							"key": "end_date",
+							"value": "2026-06-30T23:59:59Z"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "access_token",
+			"value": "APP_USR-5893369803709874-060623-57a6bee839a7951f0ddf2816f4d8f872-145197606"
+		},
+		{
+			"key": "base_url",
+			"value": "https://api.mercadopago.com"
+		}
+	]
+}

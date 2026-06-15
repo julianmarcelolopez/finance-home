@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { api } from '@/lib/api'
 import { formatARS, formatMes } from '@/lib/utils'
 import type { DetalleMes as DetalleMesType } from '@financehome/shared'
@@ -11,6 +12,8 @@ export function DetalleMes({ mes }: { mes: string }) {
   const [data, setData] = useState<DetalleMesType | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [tarjetasExpandidas, setTarjetasExpandidas] = useState(false)
+  const [cuotasExpandidas, setCuotasExpandidas] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -39,8 +42,12 @@ export function DetalleMes({ mes }: { mes: string }) {
 
   if (!data) return null
 
-  const totalPorcentajeFijos = data.total_pesos > 0
-    ? Math.round((data.fijos_pesos / data.total_pesos) * 1000) / 10
+  const totalTarjetasPesos = data.tarjetas_mes?.reduce((s, t) => s + t.pesos, 0) ?? data.total_pesos
+  const cuotasARS = data.cuotas_prestamos_ars ?? 0
+  const totalConsolidado = totalTarjetasPesos + cuotasARS
+
+  const totalPorcentajeFijos = totalConsolidado > 0
+    ? Math.round((data.fijos_pesos / totalConsolidado) * 1000) / 10
     : 0
   const totalPorcentajeVariables = Math.round((100 - totalPorcentajeFijos) * 10) / 10
 
@@ -57,21 +64,88 @@ export function DetalleMes({ mes }: { mes: string }) {
         <div className="rounded-lg border border-border overflow-hidden">
           <table className="w-full text-sm">
             <tbody>
+              {/* Tarjetas — siempre presentes, expandibles */}
+              <tr className="border-b border-border">
+                <td className="px-4 py-2.5 text-muted-foreground">
+                  <button
+                    onClick={() => setTarjetasExpandidas((v) => !v)}
+                    className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+                  >
+                    {tarjetasExpandidas
+                      ? <ChevronUp className="h-3.5 w-3.5" />
+                      : <ChevronDown className="h-3.5 w-3.5" />
+                    }
+                    Tarjetas de crédito
+                  </button>
+                </td>
+                <td className="px-4 py-2.5 text-right font-mono tabular-nums">
+                  {formatARS(totalTarjetasPesos)}
+                </td>
+              </tr>
+              {tarjetasExpandidas && (data.tarjetas_mes ?? []).map((t) => (
+                <tr key={t.tarjeta_id} className="border-b border-border bg-muted/20">
+                  <td className="px-4 py-2 pl-10 text-xs text-muted-foreground">
+                    {t.nombre}
+                  </td>
+                  <td className={`px-4 py-2 text-right font-mono tabular-nums text-xs ${t.pesos === 0 ? 'text-muted-foreground/50' : ''}`}>
+                    {formatARS(t.pesos)}
+                  </td>
+                </tr>
+              ))}
+
+              {/* Cuotas de préstamos */}
+              {cuotasARS > 0 && (
+                <>
+                  <tr className="border-b border-border">
+                    <td className="px-4 py-2.5 text-muted-foreground">
+                      <button
+                        onClick={() => setCuotasExpandidas((v) => !v)}
+                        className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+                      >
+                        {cuotasExpandidas
+                          ? <ChevronUp className="h-3.5 w-3.5" />
+                          : <ChevronDown className="h-3.5 w-3.5" />
+                        }
+                        Cuotas préstamos
+                      </button>
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-mono tabular-nums">
+                      {formatARS(cuotasARS)}
+                    </td>
+                  </tr>
+                  {cuotasExpandidas && data.cuotas_prestamos?.map((c) => (
+                    <tr key={`${c.prestamo_id}-${c.numero_cuota}`} className="border-b border-border bg-muted/20">
+                      <td className="px-4 py-2 pl-10 text-xs text-muted-foreground">
+                        {c.banco} {c.tipo} · cuota {c.numero_cuota}/{c.total_cuotas}
+                        <span className="ml-2 text-muted-foreground/60">
+                          {c.fecha_vencimiento.slice(8, 10)}/{c.fecha_vencimiento.slice(5, 7)}
+                        </span>
+                        {c.pagada && (
+                          <span className="ml-2 text-emerald-500">✓</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono tabular-nums text-xs">
+                        {formatARS(c.monto_total)}
+                      </td>
+                    </tr>
+                  ))}
+                </>
+              )}
+
+              {/* Fuentes pendientes */}
               {data.por_origen.map((origen) => (
                 <tr key={origen.nombre} className="border-b border-border last:border-0">
                   <td className="px-4 py-2.5 text-muted-foreground">{origen.nombre}</td>
                   <td className="px-4 py-2.5 text-right font-mono tabular-nums">
-                    {origen.disponible
-                      ? <span className={origen.pesos === 0 ? 'text-muted-foreground' : ''}>{formatARS(origen.pesos)}</span>
-                      : <span className="text-muted-foreground/50 text-xs">próximamente</span>
-                    }
+                    <span className="text-muted-foreground/50 text-xs">próximamente</span>
                   </td>
                 </tr>
               ))}
+
               <tr className="bg-muted/30">
                 <td className="px-4 py-2.5 font-medium">Total</td>
                 <td className="px-4 py-2.5 text-right font-mono font-semibold tabular-nums">
-                  {formatARS(data.total_pesos)}
+                  {formatARS(totalConsolidado)}
                 </td>
               </tr>
             </tbody>

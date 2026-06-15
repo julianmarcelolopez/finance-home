@@ -48,6 +48,46 @@ function VencimientoBadge({ fecha }: { fecha: string }) {
   )
 }
 
+type FilaResumen =
+  | { tipo: 'real'; resumen: ResumenTarjeta }
+  | { tipo: 'vacio'; mes: string }
+
+function rellenarMeses(resumenes: ResumenTarjeta[]): FilaResumen[] {
+  const toMesKey = (iso: string) => iso.substring(0, 7)
+
+  const porMes = new Map<string, ResumenTarjeta>()
+  for (const r of resumenes) porMes.set(toMesKey(r.vencimiento_actual), r)
+
+  const hoy = new Date()
+  const año = hoy.getFullYear()
+  const mesActual = `${año}-${String(hoy.getMonth() + 1).padStart(2, '0')}`
+  const primerMes = `${año}-01`
+
+  const resultado: FilaResumen[] = []
+  let cursor = mesActual
+
+  while (cursor >= primerMes) {
+    if (porMes.has(cursor)) {
+      resultado.push({ tipo: 'real', resumen: porMes.get(cursor)! })
+    } else {
+      resultado.push({ tipo: 'vacio', mes: cursor })
+    }
+    const [y, m] = cursor.split('-').map(Number)
+    const prev = new Date(y, m - 2, 1)
+    cursor = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`
+  }
+
+  // Resumenes de años anteriores van después, sin relleno
+  const primerMesNum = primerMes
+  for (const r of resumenes) {
+    if (toMesKey(r.vencimiento_actual) < primerMesNum) {
+      resultado.push({ tipo: 'real', resumen: r })
+    }
+  }
+
+  return resultado
+}
+
 export function TarjetaResumenes({
   tarjeta,
   onSelectResumen,
@@ -75,7 +115,7 @@ export function TarjetaResumenes({
           <Card>
             <CardContent className="p-4 space-y-1">
               <p className="text-xs text-muted-foreground">
-                Total {format(parseISO(ultimo.cierre_actual), 'MMMM yyyy', { locale: es })}
+                Total {format(parseISO(ultimo.vencimiento_actual), 'MMMM yyyy', { locale: es })}
               </p>
               <p className="text-2xl font-semibold">{formatARS(ultimo.total_pagar_pesos)}</p>
               <p className="text-xs text-muted-foreground">ARS</p>
@@ -132,7 +172,24 @@ export function TarjetaResumenes({
               </TableCell>
             </TableRow>
           ) : (
-            resumenes.map((r) => {
+            rellenarMeses(resumenes).map((fila) => {
+              if (fila.tipo === 'vacio') {
+                const label = format(parseISO(`${fila.mes}-01`), 'MMMM yyyy', { locale: es })
+                return (
+                  <TableRow key={fila.mes} className="opacity-50">
+                    <TableCell>{label}</TableCell>
+                    <TableCell className="text-muted-foreground">—</TableCell>
+                    <TableCell className="text-muted-foreground">—</TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">Sin movimientos</span>
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">$ 0</TableCell>
+                    <TableCell className="text-right text-muted-foreground">—</TableCell>
+                  </TableRow>
+                )
+              }
+
+              const r = fila.resumen
               const estado = estadoResumen(r.vencimiento_actual)
               return (
                 <TableRow
@@ -141,7 +198,7 @@ export function TarjetaResumenes({
                   onClick={() => onSelectResumen(r.id)}
                 >
                   <TableCell>
-                    {format(parseISO(r.cierre_actual), 'MMMM yyyy', { locale: es })}
+                    {format(parseISO(r.vencimiento_actual), 'MMMM yyyy', { locale: es })}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {format(parseISO(r.cierre_actual), 'dd/MM/yyyy')}

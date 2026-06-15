@@ -1,0 +1,352 @@
+{
+  "name": "JULIAN - Visa Macro",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{}] } },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [-1056, 144],
+      "id": "macv-0001-sched",
+      "name": "Todos los dias 00 Hs"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {
+          "q": "subject:\"REEMPLAZAR_CON_SUBJECT_MACRO\" has:attachment -label:procesado-finanzas"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [-832, 144],
+      "id": "macv-0002-gmail-getall",
+      "name": "Get many messages1",
+      "webhookId": "macv-webhook-getall-001",
+      "alwaysOutputData": true,
+      "credentials": {
+        "gmailOAuth2": { "id": "xYdex51owLjBLhkN", "name": "PERSONAL Gmail lopez" }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "macv-cond-001",
+              "leftValue": "={{ Object.keys($json).length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [-608, 144],
+      "id": "macv-0003-if-messages",
+      "name": "If"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [-384, 240],
+      "id": "macv-0004-noop",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "simple": false,
+        "options": { "downloadAttachments": true }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [-384, 48],
+      "id": "macv-0005-gmail-get",
+      "name": "Download Attachments",
+      "webhookId": "macv-webhook-get-001",
+      "credentials": {
+        "gmailOAuth2": { "id": "xYdex51owLjBLhkN", "name": "PERSONAL Gmail lopez" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const binaryKeys = Object.keys(item.binary || {});\n  for (const key of binaryKeys) {\n    const bin = item.binary[key];\n    if (bin.mimeType === 'application/pdf') {\n      items.push({\n        json: { emailId: item.json.id, emailSubject: item.json.subject, emailDate: item.json.date, fileName: bin.fileName || key, mimeType: bin.mimeType },\n        binary: { data: bin }\n      });\n    }\n  }\n}\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-160, 48],
+      "id": "macv-0006-filter-pdf",
+      "name": "Filter PDF Attachments",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": { "operation": "pdf", "options": {} },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [64, 48],
+      "id": "macv-0007-extract-pdf",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}",
+        "options": {
+          "systemMessage": "Eres un agente de extracción de datos financieros.\nExtraés datos de resúmenes de tarjetas de crédito argentinas en formato PDF\ny devolvés ÚNICAMENTE un objeto JSON válido, sin texto adicional,\nsin markdown, sin explicaciones.\n\nExtraé la siguiente estructura:\n\n{\n  \"resumen\": {\n    \"banco\": string,\n    \"marca_tarjeta\": string,\n    \"titular\": string,\n    \"nro_resumen\": string,\n    \"nro_socio\": string,\n    \"cierre_actual\": \"YYYY-MM-DD\",\n    \"vencimiento_actual\": \"YYYY-MM-DD\",\n    \"total_pagar_pesos\": number,\n    \"total_pagar_dolares\": number\n  },\n  \"consumos\": [\n    {\n      \"fecha\": \"YYYY-MM-DD\",\n      \"referencia\": string,\n      \"comprobante\": string,\n      \"pesos\": number,\n      \"dolares\": number,\n      \"adicional\": string | null,\n      \"cuota_actual\": number | null,\n      \"cantidad_cuotas\": number | null\n    }\n  ]\n}\n\nReglas generales:\n- Fechas en formato ISO YYYY-MM-DD.\n  Meses abreviados: Ene=01, Feb=02, Mar=03, Abr=04, May=05, Jun=06,\n  Jul=07, Ago=08, Sep=09, Oct=10, Nov=11, Dic=12.\n  Año en 2 dígitos: \"26\" = 2026.\n  Formato \"28 May 26\" = 2026-05-28.\n  Formato \"DD.MM.YY\": \"14.03.26\" = 2026-03-14.\n- Valores monetarios: sin separadores de miles, punto decimal.\n  Ejemplo: \"296.430,67\" → 296430.67\n- Si un valor es 0 o no está, usar 0.\n\nReglas del resumen (Banco Macro Visa - formato texto):\nEl encabezado del PDF tiene etiquetas en una columna y sus valores en otra.\nLas etiquetas aparecen en este orden: PAGINA:, SUCURSAL:, GRUPO:, CUIT:, CART:,\nN DE CUENTA:, LIQ.:, RESUMEN NRO.:, TITULAR DE CUENTA:\nLos valores correspondientes aparecen después, en el mismo orden:\n  1. tipo de tarjeta (ej: \"VISA GOLD\")\n  2. sucursal (ej: \"523 - CHACARITA\")\n  3. grupo\n  4. CUIT\n  5. cart\n  6. N° de cuenta (ej: \"1377397111\")\n  7. liquidación (ej: \"N675 - 040\")\n  8. nro resumen largo (ej: \"0214549 - 05 - 1 - CR0202\")\n  9. nombre titular (ej: \"LOPEZ JULIAN MARCELO\")\n\n- banco: siempre \"Macro\"\n- marca_tarjeta: del valor 1. \"VISA GOLD\" → \"Visa Gold\", \"VISA PLATINUM\" → \"Visa Platinum\",\n  \"VISA BLACK\" → \"Visa Black\". Si no hay tipo específico, usar \"Visa\".\n- titular: del valor 9, formato \"Apellido, Nombre\".\n  Ejemplo: \"LOPEZ JULIAN MARCELO\" → \"Lopez, Julian Marcelo\"\n- nro_socio: del valor 6 (N DE CUENTA). Solo dígitos.\n  Ejemplo: \"1377397111\" → \"1377397111\"\n- nro_resumen: del valor 8 (RESUMEN NRO.), usar el valor completo limpiando espacios alrededor de los guiones.\n  Ejemplo: \"0214549 - 05 - 1 - CR0202\" → \"0214549-05-1-CR0202\"\n- cierre_actual: buscar la línea \"CIERRE ACTUAL: DD Mes YY\".\n  Ejemplo: \"CIERRE ACTUAL: 28 May 26\" → \"2026-05-28\"\n- vencimiento_actual: la línea con encabezado \"VENCIMIENTO SALDO $ SALDO U$S...\"\n  es solo un encabezado de tabla. La siguiente línea comienza con la fecha de vencimiento.\n  Ejemplo: \"05 Jun 26 296.430,67 0,00 ...\" → vencimiento_actual=\"2026-06-05\"\n- total_pagar_pesos: buscar \"SALDO ACTUAL $ NNN.NNN,NN\".\n  Ejemplo: \"SALDO ACTUAL $ 296.430,67\" → 296430.67\n- total_pagar_dolares: buscar \"SALDO ACTUAL\" seguido de valor en dólares. Si no hay, usar 0.\n\nReglas de consumos:\n- Incluir TODOS los consumos de TODAS las tarjetas.\n- La sección de consumos tiene columnas: FECHA COMPROBANTE DETALLE PESOS DOLARES\n- fecha: formato DD.MM.YY → convertir a YYYY-MM-DD.\n  Ejemplo: \"14.03.26\" → \"2026-03-14\"\n- comprobante: número con posible asterisco al final. Eliminar el asterisco.\n  Ejemplo: \"000010*\" → \"000010\"\n- referencia: texto del detalle, solo texto plano. Sin markdown.\n  Si tiene cuota al final (\"Cuota 03/18\"), no incluirla en referencia.\n- cuota_actual y cantidad_cuotas: formato \"Cuota 03/18\" → cuota_actual=3, cantidad_cuotas=18.\n  Si no tiene cuotas, usar null en ambos.\n- adicional: si hay \"Tarjeta XXXX Total Consumos de NOMBRE\" y NOMBRE no es el titular\n  principal, normalizar como \"Apellido, Nombre\".\n  El titular principal tiene múltiples variantes: JULIAN M LOPEZ, JULIAN MARCELO LOPEZ,\n  LOPEZ JULIAN MARCELO, LOPEZ JULIAN M — todas deben resultar en adicional = null.\n- NO incluir: SALDO ANTERIOR, SU PAGO EN PESOS, SU PAGO EN USD, INTERESES FINANCIACION,\n  PUNIT. PAG.MIN.ANTERIOR, DB IVA, subtotales, ni líneas \"Tarjeta XXXX Total...\"\n- Devolver únicamente el objeto JSON crudo, sin bloques de código ni texto extra."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [288, 48],
+      "id": "macv-0008-ai-agent",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4.1-mini",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [368, 272],
+      "id": "macv-0009-openai",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": { "id": "t4yOpCzBUFf9ZSbe", "name": "OpenAi AIVANCE" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const filterItems = $('Filter PDF Attachments').all();\n\nreturn $input.all().map((item, i) => {\n  const raw = item.json.output;\n  const parsed = JSON.parse(raw);\n  const emailId = filterItems[i]?.json?.emailId || null;\n\n  // banco siempre Macro\n  parsed.resumen.banco = 'Macro';\n\n  // normalizar titular\n  parsed.resumen.titular = parsed.resumen.titular\n    .split(',')\n    .map(p => p.trim().toLowerCase().replace(/\\b\\w/g, c => c.toUpperCase()))\n    .join(', ');\n\n  // nro_socio: solo dígitos; fallback al nro conocido si el AI no lo extrajo\n  parsed.resumen.nro_socio = (parsed.resumen.nro_socio || '').replace(/[^\\d]/g, '') || '1377397111';\n\n  // validar fechas: reemplazar fechas inválidas con null\n  const validDate = d => (d && d !== '0000-00-00' && /^\\d{4}-\\d{2}-\\d{2}$/.test(d)) ? d : null;\n  parsed.resumen.cierre_actual = validDate(parsed.resumen.cierre_actual);\n  parsed.resumen.vencimiento_actual = validDate(parsed.resumen.vencimiento_actual);\n\n  // nro_resumen: limpiar espacios y prefixear con MACRO-{cuenta}\n  if (parsed.resumen.nro_resumen) {\n    const cleaned = parsed.resumen.nro_resumen.replace(/\\s*-\\s*/g, '-').replace(/\\s+/g, '-').trim();\n    parsed.resumen.nro_resumen = `MACRO-${parsed.resumen.nro_socio}-${cleaned}`;\n  } else {\n    parsed.resumen.nro_resumen = `NONUM-${parsed.resumen.nro_socio}-${parsed.resumen.cierre_actual}`;\n  }\n\n  // limpiar consumos\n  parsed.consumos = parsed.consumos.map(c => ({\n    ...c,\n    referencia: c.referencia.replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g, '$1').trim(),\n    comprobante: c.comprobante.trim().split(/\\s+/).pop()\n  }));\n\n  return { json: { emailId, resumen: parsed.resumen, consumos: parsed.consumos } };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 48],
+      "id": "macv-0010-json-parse",
+      "name": "JSON Parse"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "tarjetas",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "={{ 'nro_socio=eq.' + $json.resumen.nro_socio }}"
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [864, 48],
+      "id": "macv-0011-buscar-tarjeta",
+      "name": "Buscar tarjeta",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": { "id": "UH5di8hnZb06EOcj", "name": "LOPEZAZAME Supabase credential" }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "id": "macv-cond-tarjeta",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1088, 48],
+      "id": "macv-0012-if-tarjeta",
+      "name": "¿Existe tarjeta?"
+    },
+    {
+      "parameters": {
+        "tableId": "tarjetas",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "banco",      "fieldValue": "Macro" },
+            { "fieldId": "marca",      "fieldValue": "Visa" },
+            { "fieldId": "nro_cuenta", "fieldValue": "={{ $('JSON Parse').first().json.resumen.nro_socio }}" },
+            { "fieldId": "nro_socio",  "fieldValue": "={{ $('JSON Parse').first().json.resumen.nro_socio }}" },
+            { "fieldId": "titular",    "fieldValue": "Julian" },
+            { "fieldId": "activo",     "fieldValue": "=true" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1312, 280],
+      "id": "macv-0013-crear-tarjeta",
+      "name": "Auto-crear tarjeta",
+      "credentials": {
+        "supabaseApi": { "id": "UH5di8hnZb06EOcj", "name": "LOPEZAZAME Supabase credential" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const tarjeta = $input.first().json;\nconst jsonParseItems = $('JSON Parse').all();\n\nreturn jsonParseItems.map(item => ({\n  json: { ...item.json, tarjeta_id: tarjeta.id || null }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1536, 48],
+      "id": "macv-0014-merge-tarjeta-id",
+      "name": "Merge tarjeta_id"
+    },
+    {
+      "parameters": {
+        "tableId": "resumenes_tarjeta",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "banco",              "fieldValue": "={{ $json.resumen.banco }}" },
+            { "fieldId": "marca_tarjeta",       "fieldValue": "={{ $json.resumen.marca_tarjeta }}" },
+            { "fieldId": "titular",             "fieldValue": "={{ $json.resumen.titular }}" },
+            { "fieldId": "nro_resumen",         "fieldValue": "={{ $json.resumen.nro_resumen }}" },
+            { "fieldId": "cierre_actual",       "fieldValue": "={{ $json.resumen.cierre_actual }}" },
+            { "fieldId": "vencimiento_actual",  "fieldValue": "={{ $json.resumen.vencimiento_actual }}" },
+            { "fieldId": "total_pagar_pesos",   "fieldValue": "={{ $json.resumen.total_pagar_pesos }}" },
+            { "fieldId": "total_pagar_dolares", "fieldValue": "={{ $json.resumen.total_pagar_dolares }}" },
+            { "fieldId": "tarjeta_id",          "fieldValue": "={{ $json.tarjeta_id }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1760, 48],
+      "id": "macv-0015-insert-resumen",
+      "name": "Insert resumen",
+      "continueOnFail": true,
+      "credentials": {
+        "supabaseApi": { "id": "UH5di8hnZb06EOcj", "name": "LOPEZAZAME Supabase credential" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const resumenes = $input.all();\nconst jsonParseItems = $('JSON Parse').all();\n\nreturn resumenes.map((item, i) => {\n  const resumenId = item.json.id || null;\n  const emailId = jsonParseItems[i]?.json?.emailId || null;\n  const consumos = resumenId ? (jsonParseItems[i]?.json?.consumos || []) : [];\n  return { json: { ...item.json, id: resumenId, consumos, emailId } };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1984, 48],
+      "id": "macv-0016-merge-consumos",
+      "name": "Merge Consumos"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const resumenId = item.json.id;\n  const nro_resumen = item.json.nro_resumen;\n  const consumos = item.json.consumos;\n  if (!consumos) continue;\n  for (const c of consumos) {\n    items.push({\n      json: {\n        resumen_id: resumenId, nro_resumen, fecha: c.fecha, referencia: c.referencia,\n        comprobante: c.comprobante, pesos: c.pesos, dolares: c.dolares,\n        adicional: c.adicional, cuota_actual: c.cuota_actual ?? null, cantidad_cuotas: c.cantidad_cuotas ?? null\n      },\n      pairedItem: { item: $input.all().indexOf(item) }\n    });\n  }\n}\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2208, 48],
+      "id": "macv-0017-prep-consumos",
+      "name": "Preparar Consumos",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "tableId": "consumos_tarjeta",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "resumen_id",      "fieldValue": "={{ $json.resumen_id }}" },
+            { "fieldId": "fecha",           "fieldValue": "={{ $json.fecha }}" },
+            { "fieldId": "referencia",      "fieldValue": "={{ $json.referencia }}" },
+            { "fieldId": "comprobante",     "fieldValue": "={{ $json.comprobante }}" },
+            { "fieldId": "pesos",           "fieldValue": "={{ $json.pesos }}" },
+            { "fieldId": "dolares",         "fieldValue": "={{ $json.dolares }}" },
+            { "fieldId": "adicional",       "fieldValue": "={{ $json.adicional }}" },
+            { "fieldId": "nro_resumen",     "fieldValue": "={{ $json.nro_resumen }}" },
+            { "fieldId": "cuota_actual",    "fieldValue": "={{ $json.cuota_actual }}" },
+            { "fieldId": "cantidad_cuotas", "fieldValue": "={{ $json.cantidad_cuotas }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [2432, 48],
+      "id": "macv-0018-insert-consumos",
+      "name": "Insert consumos",
+      "credentials": {
+        "supabaseApi": { "id": "UH5di8hnZb06EOcj", "name": "LOPEZAZAME Supabase credential" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const mergeItems = $('Merge Consumos').all();\nconst emailIds = [...new Set(mergeItems.map(i => i.json.emailId))];\nreturn emailIds.map(emailId => ({ json: { emailId } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2656, 48],
+      "id": "macv-0019-get-email-id",
+      "name": "Obtener emailId",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.emailId }}",
+        "labelIds": ["Label_1480986065077129675"]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [2880, 48],
+      "id": "macv-0020-add-label",
+      "name": "Add label to message",
+      "webhookId": "macv-webhook-label-001",
+      "credentials": {
+        "gmailOAuth2": { "id": "xYdex51owLjBLhkN", "name": "PERSONAL Gmail lopez" }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Todos los dias 00 Hs":  { "main": [[{ "node": "Get many messages1",    "type": "main", "index": 0 }]] },
+    "Get many messages1":    { "main": [[{ "node": "If",                    "type": "main", "index": 0 }]] },
+    "If": {
+      "main": [
+        [{ "node": "Download Attachments",     "type": "main", "index": 0 }],
+        [{ "node": "No Operation, do nothing", "type": "main", "index": 0 }]
+      ]
+    },
+    "Download Attachments":  { "main": [[{ "node": "Filter PDF Attachments", "type": "main", "index": 0 }]] },
+    "Filter PDF Attachments":{ "main": [[{ "node": "Extract from File",      "type": "main", "index": 0 }]] },
+    "Extract from File":     { "main": [[{ "node": "AI Agent",               "type": "main", "index": 0 }]] },
+    "OpenAI Chat Model":     { "ai_languageModel": [[{ "node": "AI Agent",   "type": "ai_languageModel", "index": 0 }]] },
+    "AI Agent":              { "main": [[{ "node": "JSON Parse",             "type": "main", "index": 0 }]] },
+    "JSON Parse":            { "main": [[{ "node": "Buscar tarjeta",         "type": "main", "index": 0 }]] },
+    "Buscar tarjeta":        { "main": [[{ "node": "¿Existe tarjeta?",       "type": "main", "index": 0 }]] },
+    "¿Existe tarjeta?": {
+      "main": [
+        [{ "node": "Merge tarjeta_id",   "type": "main", "index": 0 }],
+        [{ "node": "Auto-crear tarjeta", "type": "main", "index": 0 }]
+      ]
+    },
+    "Auto-crear tarjeta":    { "main": [[{ "node": "Merge tarjeta_id",      "type": "main", "index": 0 }]] },
+    "Merge tarjeta_id":      { "main": [[{ "node": "Insert resumen",        "type": "main", "index": 0 }]] },
+    "Insert resumen":        { "main": [[{ "node": "Merge Consumos",        "type": "main", "index": 0 }]] },
+    "Merge Consumos":        { "main": [[{ "node": "Preparar Consumos",     "type": "main", "index": 0 }]] },
+    "Preparar Consumos":     { "main": [[{ "node": "Insert consumos",       "type": "main", "index": 0 }]] },
+    "Insert consumos":       { "main": [[{ "node": "Obtener emailId",       "type": "main", "index": 0 }]] },
+    "Obtener emailId":       { "main": [[{ "node": "Add label to message",  "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "macv-v1-autocreate-tarjeta",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "899fc01a54a327346d11fc49cb161319204e3aee2c033bb652ab72dadf0d56bb"
+  },
+  "id": "MACvisaJULIAN001",
+  "tags": []
+}

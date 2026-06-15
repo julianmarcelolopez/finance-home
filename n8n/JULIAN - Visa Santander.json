@@ -12,6 +12,7 @@
     {
       "parameters": {
         "operation": "getAll",
+        "returnAll": true,
         "filters": {
           "q": "subject:\"Santander Visa Resumen\" has:attachment -label:procesado-finanzas"
         }

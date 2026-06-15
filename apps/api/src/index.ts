@@ -13,6 +13,7 @@ import proyectosRouter from './routes/proyectos'
 import tarjetasRouter from './routes/tarjetas'
 import etiquetasRouter from './routes/etiquetas'
 import gastosDashboardRouter from './routes/gastos-dashboard'
+import prestamosRouter from './routes/prestamos'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -40,6 +41,7 @@ app.use('/api/proyectos', proyectosRouter)
 app.use('/api/tarjetas', tarjetasRouter)
 app.use('/api/etiquetas', etiquetasRouter)
 app.use('/api/gastos-dashboard', gastosDashboardRouter)
+app.use('/api/prestamos', prestamosRouter)
 
 app.listen(PORT, () => {
   console.log(`API corriendo en http://localhost:${PORT}`)

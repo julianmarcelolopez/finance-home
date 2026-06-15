@@ -34,7 +34,7 @@ export interface ConsumoTarjeta {
 
 // --- Tablas nuevas ---
 
-export type Moneda = 'ARS' | 'USD'
+export type Moneda = 'ARS' | 'USD' | 'UVA'
 export type Persona = 'Julian' | 'Patricia' | 'Compartido'
 
 export interface GastoFijo {
@@ -151,6 +151,16 @@ export interface ResumenPorCategoria {
   porcentaje: number
 }
 
+export interface ProximaCuotaPrestamo {
+  banco: string
+  tipo: string
+  persona: Persona
+  numero_cuota: number
+  total_cuotas: number
+  fecha_vencimiento: string
+  monto_total: number
+}
+
 export interface DashboardResumen {
   mes_actual: string
   total_consumos_pesos: number
@@ -159,6 +169,7 @@ export interface DashboardResumen {
   proyectos_activos: number
   proximos_vencimientos: ResumenTarjeta[]
   tipo_cambio: TipoCambio
+  proxima_cuota_prestamo?: ProximaCuotaPrestamo | null
 }
 
 export interface FlujoCajaMes {
@@ -209,12 +220,22 @@ export interface ConsumoMes {
   adicional: boolean
 }
 
+export interface ResumenTarjetaMes {
+  tarjeta_id: string
+  nombre: string
+  pesos: number
+  dolares: number
+}
+
 export interface DetalleMes {
   mes: string
   total_pesos: number
   total_dolares: number
   fijos_pesos: number
   variables_pesos: number
+  tarjetas_mes?: ResumenTarjetaMes[]
+  cuotas_prestamos_ars?: number
+  cuotas_prestamos?: CuotaMesResumen[]
   por_origen: ResumenOrigen[]
   por_categoria: ResumenCategoriaMes[]
   top5: Top5Consumo[]
@@ -237,4 +258,94 @@ export interface PaginatedResponse<T> {
 export interface ApiError {
   error: string
   details?: string
+}
+
+// --- Vista semestral ---
+
+export interface FilaSemestre {
+  nombre: string
+  tipo: 'tarjeta' | 'prestamo' | 'gastos_fijos'
+  meses: Record<string, number> // YYYY-MM → ARS
+}
+
+export interface SemestreResumen {
+  año: number
+  semestre: 1 | 2
+  meses: string[]                // lista ordenada de YYYY-MM del semestre
+  filas: FilaSemestre[]
+  totales: Record<string, number> // YYYY-MM → total ARS
+}
+
+// --- Préstamos ---
+
+export interface CuotaPrestamo {
+  id: string
+  prestamo_id: string
+  numero_cuota: number
+  fecha_vencimiento: string
+  monto_total: number
+  interes_nominal: number | null
+  sellos: number | null
+  iva_interes: number | null
+  amortizacion: number | null
+  pagada: boolean
+  created_at: string
+}
+
+export interface Prestamo {
+  id: string
+  numero: string
+  banco: string
+  tipo: string
+  tasa: number | null
+  sistema_amortizacion: string | null
+  monto_solicitado: number
+  capital_adeudado: number | null
+  moneda: Moneda
+  persona: Persona
+  cuenta_debito: string | null
+  activo: boolean
+  created_at: string
+  cuotas?: CuotaPrestamo[]
+}
+
+export interface PrestamoCreate {
+  numero: string
+  banco: string
+  tipo: string
+  tasa?: number
+  sistema_amortizacion?: string
+  monto_solicitado: number
+  capital_adeudado?: number
+  moneda: Moneda
+  persona: Persona
+  cuenta_debito?: string
+}
+
+export interface CuotaPrestamoCreate {
+  numero_cuota: number
+  fecha_vencimiento: string
+  monto_total: number
+  interes_nominal?: number
+  sellos?: number
+  iva_interes?: number
+  amortizacion?: number
+  pagada?: boolean
+}
+
+export interface PrestamoConCuotasCreate {
+  prestamo: PrestamoCreate
+  cuotas: CuotaPrestamoCreate[]
+}
+
+export interface CuotaMesResumen {
+  prestamo_id: string
+  banco: string
+  tipo: string
+  persona: Persona
+  numero_cuota: number
+  total_cuotas: number
+  fecha_vencimiento: string
+  monto_total: number
+  pagada: boolean
 }

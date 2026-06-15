@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { DollarSign, CreditCard, TrendingUp, Calendar } from 'lucide-react'
+import { DollarSign, CreditCard, TrendingUp, Calendar, Landmark } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -90,6 +90,14 @@ export default function Dashboard() {
           description="Calculado al dólar blue"
           icon={DollarSign}
         />
+        {data.proxima_cuota_prestamo && (
+          <MetricCard
+            title="Próxima cuota préstamo"
+            value={formatARS(data.proxima_cuota_prestamo.monto_total)}
+            description={`${data.proxima_cuota_prestamo.banco} ${data.proxima_cuota_prestamo.tipo} ${data.proxima_cuota_prestamo.numero_cuota}/${data.proxima_cuota_prestamo.total_cuotas} · vence ${format(new Date(data.proxima_cuota_prestamo.fecha_vencimiento + 'T12:00:00'), 'dd/MM/yyyy')}`}
+            icon={Landmark}
+          />
+        )}
         <MetricCard
           title="Proyectos activos"
           value={String(data.proyectos_activos)}
