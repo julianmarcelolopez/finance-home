@@ -43,6 +43,6 @@ app.use('/api/etiquetas', etiquetasRouter)
 app.use('/api/gastos-dashboard', gastosDashboardRouter)
 app.use('/api/prestamos', prestamosRouter)
 
-app.listen(PORT, () => {
-  console.log(`API corriendo en http://localhost:${PORT}`)
+app.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`API corriendo en http://0.0.0.0:${PORT}`)
 })
