@@ -9,12 +9,6 @@ const TIPO_COLOR: Record<string, string> = {
   gastos_fijos:'text-amber-400',
 }
 
-const TIPO_LABEL: Record<string, string> = {
-  tarjeta:     'Tarjeta',
-  prestamo:    'Préstamo',
-  gastos_fijos:'Gastos fijos',
-}
-
 function abreviarMes(mesISO: string): string {
   const [y, m] = mesISO.split('-')
   const nombres = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
