@@ -105,7 +105,7 @@ router.get('/mes', async (req, res) => {
 
     const cuotas_prestamos_total_ars = cuotas_prestamos.reduce((s, c) => s + c.monto_total, 0)
 
-    const consumosRaw = (rows ?? []) as Array<{
+    const consumosRaw = (rows ?? []) as unknown as Array<{
       id: string
       fecha: string
       referencia: string
