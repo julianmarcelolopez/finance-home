@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { api } from '@/lib/api'
 import { cn, formatARS, formatUSD, mesActual } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
@@ -114,11 +114,11 @@ export function TarjetaConsumos({
               return (
                 <TableRow key={c.id}>
                   <TableCell className="whitespace-nowrap">
-                    {format(new Date(c.fecha), 'dd/MM/yyyy')}
+                    {format(parseISO(c.fecha), 'dd/MM/yyyy')}
                   </TableCell>
                   <TableCell className="max-w-xs truncate">{c.referencia}</TableCell>
                   <TableCell className="text-right">
-                    {c.pesos > 0 ? formatARS(c.pesos) : '—'}
+                    {c.pesos !== 0 ? formatARS(c.pesos) : '—'}
                   </TableCell>
                   <TableCell className="text-right">
                     {c.dolares > 0 ? formatUSD(c.dolares) : '—'}

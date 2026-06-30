@@ -63,8 +63,9 @@ function rellenarMeses(resumenes: ResumenTarjeta[]): FilaResumen[] {
   const mesActual = `${año}-${String(hoy.getMonth() + 1).padStart(2, '0')}`
   const primerMes = `${año}-01`
 
+  const ultimoMes = resumenes.length > 0 ? toMesKey(resumenes[0].vencimiento_actual) : mesActual
   const resultado: FilaResumen[] = []
-  let cursor = mesActual
+  let cursor = ultimoMes > mesActual ? ultimoMes : mesActual
 
   while (cursor >= primerMes) {
     if (porMes.has(cursor)) {

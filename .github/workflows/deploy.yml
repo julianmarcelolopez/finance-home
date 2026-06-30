@@ -1,0 +1,18 @@
+name: Deploy to EasyPanel
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger backend deploy
+        run: curl -s -X POST "${{ secrets.EASYPANEL_BACKEND_URL }}"
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger frontend deploy
+        run: curl -s -X POST "${{ secrets.EASYPANEL_FRONTEND_URL }}"
