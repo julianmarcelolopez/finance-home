@@ -2,7 +2,7 @@
 
 ## Estado
 
-- [ ] Pendiente
+- [x] Completado — 2026-07-01
 
 ## Archivos a crear / modificar
 

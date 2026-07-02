@@ -2,7 +2,7 @@
 
 ## Estado
 
-- [ ] Pendiente — crear `apps/api/src/routes/ingresos.ts` y registrar en `index.ts`
+- [x] Completado — 2026-06-30
 
 ## Endpoints
 

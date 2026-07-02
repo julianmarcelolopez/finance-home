@@ -14,14 +14,14 @@ Tener visibilidad de los ingresos reales del hogar para calcular el saldo mensua
 
 ## Estado actual
 
-**En planificación — 2026-06-15**
+**Completado — 2026-07-01**
 
 | Fase | Tarea | Estado |
 |------|-------|--------|
-| 01 | SQL — tabla `ingresos` + RLS | Pendiente |
-| 02 | Shared types — `IngresoCreate` | Pendiente |
-| 03 | API — endpoints CRUD | Pendiente |
-| 04 | Frontend — página Ingresos | Pendiente |
+| 01 | SQL — tabla `ingresos` + RLS | ✅ Completado |
+| 02 | Shared types — `IngresoCreate` | ✅ Completado |
+| 03 | API — endpoints CRUD | ✅ Completado |
+| 04 | Frontend — página Ingresos | ✅ Completado |
 
 ## Diseño de la UI
 

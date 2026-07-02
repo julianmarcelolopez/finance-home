@@ -8,6 +8,7 @@ import Planificacion from './pages/Planificacion'
 import Proyectos from './pages/Proyectos'
 import Inversiones from './pages/Inversiones'
 import GastosFijos from './pages/GastosFijos'
+import Ingresos from './pages/Ingresos'
 import Etiquetas from './pages/Etiquetas'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -40,6 +41,7 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="gastos" element={<Gastos />} />
             <Route path="gastos-fijos" element={<GastosFijos />} />
+            <Route path="ingresos" element={<Ingresos />} />
             <Route path="etiquetas" element={<Etiquetas />} />
             <Route path="planificacion" element={<Planificacion />} />
             <Route path="proyectos" element={<Proyectos />} />

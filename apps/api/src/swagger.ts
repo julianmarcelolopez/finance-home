@@ -268,6 +268,33 @@ const options: swaggerJsdoc.Options = {
           },
         },
 
+        // --- Ingresos ---
+        Ingreso: {
+          type: 'object',
+          properties: {
+            id:          { type: 'string', format: 'uuid' },
+            descripcion: { type: 'string', example: 'Sueldo junio' },
+            monto:       { type: 'number', example: 1200000 },
+            moneda:      { type: 'string', enum: ['ARS', 'USD'] },
+            persona:     { type: 'string', enum: ['Julian', 'Patricia', 'Compartido'] },
+            tipo:        { type: 'string', enum: ['sueldo', 'freelance', 'renta', 'otro'] },
+            fecha:       { type: 'string', format: 'date', example: '2026-06-01' },
+            created_at:  { type: 'string', format: 'date-time' },
+          },
+        },
+        IngresoCreate: {
+          type: 'object',
+          required: ['descripcion', 'monto', 'moneda', 'persona', 'tipo', 'fecha'],
+          properties: {
+            descripcion: { type: 'string', example: 'Sueldo junio' },
+            monto:       { type: 'number', example: 1200000 },
+            moneda:      { type: 'string', enum: ['ARS', 'USD'] },
+            persona:     { type: 'string', enum: ['Julian', 'Patricia', 'Compartido'] },
+            tipo:        { type: 'string', enum: ['sueldo', 'freelance', 'renta', 'otro'] },
+            fecha:       { type: 'string', format: 'date', example: '2026-06-01' },
+          },
+        },
+
         // --- Planificación ---
         FlujoCajaMes: {
           type: 'object',

@@ -2,7 +2,7 @@
 
 ## Estado
 
-- [ ] Pendiente — agregar `IngresoCreate` a `packages/shared/types/index.ts`
+- [x] Completado — 2026-06-30
 
 ## Tipos existentes (ya en index.ts)
 

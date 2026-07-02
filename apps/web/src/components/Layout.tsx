@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Receipt, CalendarDays, Target, TrendingUp, LogOut, Repeat2, Tag } from 'lucide-react'
+import { LayoutDashboard, Receipt, CalendarDays, Target, TrendingUp, LogOut, Repeat2, Tag, Wallet } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -8,6 +8,7 @@ const nav = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/gastos', label: 'Gastos', icon: Receipt },
   { to: '/gastos-fijos', label: 'Gastos Fijos', icon: Repeat2 },
+  { to: '/ingresos', label: 'Ingresos', icon: Wallet },
   { to: '/etiquetas', label: 'Etiquetas', icon: Tag },
   { to: '/planificacion', label: 'Planificación', icon: CalendarDays },
   { to: '/proyectos', label: 'Proyectos', icon: Target },
