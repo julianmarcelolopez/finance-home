@@ -14,6 +14,8 @@ import tarjetasRouter from './routes/tarjetas'
 import etiquetasRouter from './routes/etiquetas'
 import gastosDashboardRouter from './routes/gastos-dashboard'
 import prestamosRouter from './routes/prestamos'
+import gastosMercadopagoRouter from './routes/gastos-mercadopago'
+import gastosResumenMensualRouter from './routes/gastos-resumen-mensual'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -42,6 +44,8 @@ app.use('/api/tarjetas', tarjetasRouter)
 app.use('/api/etiquetas', etiquetasRouter)
 app.use('/api/gastos-dashboard', gastosDashboardRouter)
 app.use('/api/prestamos', prestamosRouter)
+app.use('/api/gastos-mercadopago', gastosMercadopagoRouter)
+app.use('/api/gastos-resumen-mensual', gastosResumenMensualRouter)
 
 app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`API corriendo en http://0.0.0.0:${PORT}`)

@@ -45,7 +45,8 @@ router.get('/mes', async (req, res) => {
 
     // Consumos de tarjeta: pertenecen al mes en que vence el resumen (vencimiento_actual)
     // Cuotas de préstamos: pertenecen al mes en que vence la cuota (fecha_vencimiento)
-    const [{ data: rows, error }, { data: cuotasRaw }, { data: tarjetasData }] = await Promise.all([
+    // Gastos Mercadopago: pertenecen al mes de su propia fecha
+    const [{ data: rows, error }, { data: cuotasRaw }, { data: tarjetasData }, { data: mpRaw, error: errorMp }] = await Promise.all([
       supabaseAdmin
         .from('consumos_tarjeta')
         .select(`
@@ -71,10 +72,22 @@ router.get('/mes', async (req, res) => {
         .eq('activo', true)
         .order('titular')
         .order('marca'),
+
+      supabaseAdmin
+        .from('gastos_mercadopago')
+        .select('id, fecha, descripcion, monto, moneda, persona, categoria_id, categorias(nombre, color)')
+        .gte('fecha', desde)
+        .lte('fecha', hasta)
+        .order('fecha', { ascending: false }),
     ])
 
     if (error) {
       res.status(500).json({ error: error.message })
+      return
+    }
+
+    if (errorMp) {
+      res.status(500).json({ error: errorMp.message })
       return
     }
 
@@ -118,11 +131,35 @@ router.get('/mes', async (req, res) => {
       categorias: { nombre: string; color: string } | null
     }>
 
-    // Totales globales
-    const total_pesos = consumosRaw.reduce((s, c) => s + (c.pesos ?? 0), 0)
-    const total_dolares = consumosRaw.reduce((s, c) => s + (c.dolares ?? 0), 0)
+    // Gastos Mercadopago normalizados al mismo shape que un consumo (pesos/dolares separados por moneda)
+    const mpNormalizado = ((mpRaw ?? []) as unknown as Array<{
+      id: string
+      fecha: string
+      descripcion: string
+      monto: number
+      moneda: 'ARS' | 'USD'
+      persona: string
+      categoria_id: string | null
+      categorias: { nombre: string; color: string } | null
+    }>).map(g => ({
+      id: g.id,
+      fecha: g.fecha,
+      descripcion: g.descripcion,
+      pesos: g.moneda === 'ARS' ? g.monto : 0,
+      dolares: g.moneda === 'USD' ? g.monto : 0,
+      persona: g.persona,
+      categoria_id: g.categoria_id,
+      categorias: g.categorias,
+    }))
+
+    const mpPesosTotal = mpNormalizado.reduce((s, g) => s + g.pesos, 0)
+    const mpDolaresTotal = mpNormalizado.reduce((s, g) => s + g.dolares, 0)
+
+    // Totales globales (tarjetas + Mercadopago; los gastos Mercadopago siempre son variables)
+    const total_pesos = consumosRaw.reduce((s, c) => s + (c.pesos ?? 0), 0) + mpPesosTotal
+    const total_dolares = consumosRaw.reduce((s, c) => s + (c.dolares ?? 0), 0) + mpDolaresTotal
     const fijos_pesos = consumosRaw.filter(c => c.es_fijo).reduce((s, c) => s + (c.pesos ?? 0), 0)
-    const variables_pesos = consumosRaw.filter(c => !c.es_fijo).reduce((s, c) => s + (c.pesos ?? 0), 0)
+    const variables_pesos = consumosRaw.filter(c => !c.es_fijo).reduce((s, c) => s + (c.pesos ?? 0), 0) + mpPesosTotal
 
     // Tarjetas: siempre todas las activas, con $0 si no tuvieron consumos en el mes
     const tarjetaMontoMap = new Map<string, { pesos: number; dolares: number }>()
@@ -141,14 +178,24 @@ router.get('/mes', async (req, res) => {
       dolares: tarjetaMontoMap.get(t.id)?.dolares ?? 0,
     })).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
 
-    // Orígenes pendientes (fuentes no implementadas)
+    // Mercadopago: implementado (carga manual, tarea 07). Efectivo: pendiente (tarea 04).
+    const mpPorPersona = new Map<string, { pesos: number; dolares: number }>()
+    for (const g of mpNormalizado) {
+      const prev = mpPorPersona.get(g.persona) ?? { pesos: 0, dolares: 0 }
+      mpPorPersona.set(g.persona, { pesos: prev.pesos + g.pesos, dolares: prev.dolares + g.dolares })
+    }
+
     const por_origen: ResumenOrigen[] = [
-      { nombre: 'Mercadopago Julian', pesos: 0, dolares: 0, disponible: false },
-      { nombre: 'Mercadopago Patricia', pesos: 0, dolares: 0, disponible: false },
+      { nombre: 'Mercadopago Julian', pesos: mpPorPersona.get('Julian')?.pesos ?? 0, dolares: mpPorPersona.get('Julian')?.dolares ?? 0, disponible: true },
+      { nombre: 'Mercadopago Patricia', pesos: mpPorPersona.get('Patricia')?.pesos ?? 0, dolares: mpPorPersona.get('Patricia')?.dolares ?? 0, disponible: true },
       { nombre: 'Efectivo', pesos: 0, dolares: 0, disponible: false },
     ]
+    const mpCompartido = mpPorPersona.get('Compartido')
+    if (mpCompartido) {
+      por_origen.push({ nombre: 'Mercadopago Compartido', pesos: mpCompartido.pesos, dolares: mpCompartido.dolares, disponible: true })
+    }
 
-    // Por categoría
+    // Por categoría (tarjetas + Mercadopago)
     const catMap = new Map<string, { nombre: string; color: string; monto: number }>()
     for (const c of consumosRaw) {
       const key = c.categoria_id ?? '__sin_categoria__'
@@ -156,6 +203,13 @@ router.get('/mes', async (req, res) => {
       const color = c.categorias?.color ?? '#6b7280'
       const prev = catMap.get(key) ?? { nombre, color, monto: 0 }
       catMap.set(key, { nombre, color, monto: prev.monto + (c.pesos ?? 0) })
+    }
+    for (const g of mpNormalizado) {
+      const key = g.categoria_id ?? '__sin_categoria__'
+      const nombre = g.categorias?.nombre ?? 'Sin categoría'
+      const color = g.categorias?.color ?? '#6b7280'
+      const prev = catMap.get(key) ?? { nombre, color, monto: 0 }
+      catMap.set(key, { nombre, color, monto: prev.monto + g.pesos })
     }
     const por_categoria: ResumenCategoriaMes[] = Array.from(catMap.values())
       .map(({ nombre, color, monto }) => ({
@@ -166,11 +220,9 @@ router.get('/mes', async (req, res) => {
       }))
       .sort((a, b) => b.monto - a.monto)
 
-    // Top 5
-    const top5: Top5Consumo[] = [...consumosRaw]
-      .sort((a, b) => b.pesos - a.pesos)
-      .slice(0, 5)
-      .map(c => ({
+    // Top 5 (tarjetas + Mercadopago)
+    const top5: Top5Consumo[] = [
+      ...consumosRaw.map(c => ({
         id: c.id,
         fecha: c.fecha,
         referencia: c.referencia,
@@ -178,21 +230,47 @@ router.get('/mes', async (req, res) => {
         dolares: c.dolares,
         origen: `${c.resumenes_tarjeta.marca_tarjeta} ${c.resumenes_tarjeta.banco} — ${c.resumenes_tarjeta.titular}`,
         adicional: c.adicional,
-      }))
+      })),
+      ...mpNormalizado.map(g => ({
+        id: g.id,
+        fecha: g.fecha,
+        referencia: g.descripcion,
+        pesos: g.pesos,
+        dolares: g.dolares,
+        origen: `Mercadopago — ${g.persona}`,
+        adicional: false,
+      })),
+    ]
+      .sort((a, b) => b.pesos - a.pesos)
+      .slice(0, 5)
 
-    // Tabla completa
-    const consumos: ConsumoMes[] = consumosRaw.map(c => ({
-      id: c.id,
-      fecha: c.fecha,
-      referencia: c.referencia,
-      pesos: c.pesos,
-      dolares: c.dolares,
-      origen: `${c.resumenes_tarjeta.marca_tarjeta} ${c.resumenes_tarjeta.banco} — ${c.resumenes_tarjeta.titular}`,
-      categoria_nombre: c.categorias?.nombre ?? null,
-      categoria_color: c.categorias?.color ?? null,
-      es_fijo: c.es_fijo,
-      adicional: c.adicional,
-    }))
+    // Tabla completa (tarjetas + Mercadopago, ordenada por fecha descendente)
+    const consumos: ConsumoMes[] = [
+      ...consumosRaw.map(c => ({
+        id: c.id,
+        fecha: c.fecha,
+        referencia: c.referencia,
+        pesos: c.pesos,
+        dolares: c.dolares,
+        origen: `${c.resumenes_tarjeta.marca_tarjeta} ${c.resumenes_tarjeta.banco} — ${c.resumenes_tarjeta.titular}`,
+        categoria_nombre: c.categorias?.nombre ?? null,
+        categoria_color: c.categorias?.color ?? null,
+        es_fijo: c.es_fijo,
+        adicional: c.adicional,
+      })),
+      ...mpNormalizado.map(g => ({
+        id: g.id,
+        fecha: g.fecha,
+        referencia: g.descripcion,
+        pesos: g.pesos,
+        dolares: g.dolares,
+        origen: `Mercadopago — ${g.persona}`,
+        categoria_nombre: g.categorias?.nombre ?? null,
+        categoria_color: g.categorias?.color ?? null,
+        es_fijo: false,
+        adicional: false,
+      })),
+    ].sort((a, b) => b.fecha.localeCompare(a.fecha))
 
     const respuesta: DetalleMes = {
       mes,
@@ -246,14 +324,27 @@ router.get('/semestral', async (_req, res) => {
     const lastDay = new Date(parseInt(lastYear), parseInt(lastMonth), 0).getDate()
     const hasta = `${meses[5]}-${String(lastDay).padStart(2, '0')}`
 
-    const { data: rows, error } = await supabaseAdmin
-      .from('consumos_tarjeta')
-      .select('fecha, pesos, dolares')
-      .gte('fecha', desde)
-      .lte('fecha', hasta)
+    const [{ data: rows, error }, { data: mpRows, error: errorMp }] = await Promise.all([
+      supabaseAdmin
+        .from('consumos_tarjeta')
+        .select('fecha, pesos, dolares')
+        .gte('fecha', desde)
+        .lte('fecha', hasta),
+
+      supabaseAdmin
+        .from('gastos_mercadopago')
+        .select('fecha, monto, moneda')
+        .gte('fecha', desde)
+        .lte('fecha', hasta),
+    ])
 
     if (error) {
       res.status(500).json({ error: error.message })
+      return
+    }
+
+    if (errorMp) {
+      res.status(500).json({ error: errorMp.message })
       return
     }
 
@@ -267,6 +358,15 @@ router.get('/semestral', async (_req, res) => {
       if (prev) {
         prev.pesos += row.pesos ?? 0
         prev.dolares += row.dolares ?? 0
+      }
+    }
+
+    for (const g of mpRows ?? []) {
+      const mesKey = g.fecha.slice(0, 7)
+      const prev = totales.get(mesKey)
+      if (prev) {
+        if (g.moneda === 'ARS') prev.pesos += g.monto ?? 0
+        else prev.dolares += g.monto ?? 0
       }
     }
 
@@ -322,7 +422,7 @@ router.get('/semestre', async (req, res) => {
       meses.push(`${año}-${String(m).padStart(2, '0')}`)
     }
 
-    const [consumosRes, cuotasRes, fijosRes, tipoCambio] = await Promise.all([
+    const [consumosRes, cuotasRes, fijosRes, mpRes, tipoCambio] = await Promise.all([
       supabaseAdmin
         .from('consumos_tarjeta')
         .select('pesos, resumenes_tarjeta!inner(banco, marca_tarjeta, titular, vencimiento_actual)')
@@ -340,6 +440,12 @@ router.get('/semestre', async (req, res) => {
         .from('gastos_fijos')
         .select('monto, moneda')
         .eq('activo', true),
+
+      supabaseAdmin
+        .from('gastos_mercadopago')
+        .select('fecha, monto, moneda, persona')
+        .gte('fecha', desde)
+        .lte('fecha', hasta),
 
       getTipoCambio(),
     ])
@@ -385,8 +491,23 @@ router.get('/semestre', async (req, res) => {
       meses: Object.fromEntries(meses.map(m => [m, totalFijosARS])),
     }
 
+    // ── Mercadopago: agrupar por persona × mes (USD convertido al blue) ──
+    const mpMap = new Map<string, Record<string, number>>()
+    for (const g of (mpRes.data ?? []) as any[]) {
+      const nombre = `Mercadopago ${g.persona}`
+      const mesKey = (g.fecha as string).slice(0, 7)
+      const montoARS = g.moneda === 'ARS' ? g.monto : g.monto * tipoCambio.blue.venta
+      if (!mpMap.has(nombre)) mpMap.set(nombre, {})
+      const prev = mpMap.get(nombre)!
+      prev[mesKey] = (prev[mesKey] ?? 0) + (montoARS ?? 0)
+    }
+
+    const filasMercadopago: FilaSemestre[] = Array.from(mpMap.entries())
+      .map(([nombre, mesesData]) => ({ nombre, tipo: 'mercadopago' as const, meses: mesesData }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+
     // ── Totales por mes ──
-    const filas: FilaSemestre[] = [...filasTarjeta, ...filasPrestamo, filaFijos]
+    const filas: FilaSemestre[] = [...filasTarjeta, ...filasPrestamo, filaFijos, ...filasMercadopago]
     const totales: Record<string, number> = {}
     for (const mes of meses) {
       totales[mes] = filas.reduce((acc, f) => acc + (f.meses[mes] ?? 0), 0)

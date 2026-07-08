@@ -6,7 +6,7 @@ Igual que la tarea 02 pero para la cuenta MP de Patricia. Reutiliza la misma inf
 
 ## Estado
 
-[ ] Pendiente — depende de la tarea 02.
+**Bloqueada** — igual que la tarea 02, se prioriza la carga manual ([tarea 07](../07-mercadopago-carga-manual/00-overview.md)), ya implementada. Sin fecha definida para retomar el sync por API.
 
 ## Alcance
 

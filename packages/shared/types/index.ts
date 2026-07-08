@@ -124,6 +124,7 @@ export interface Tarjeta {
   nro_socio: string
   titular: string
   activo: boolean
+  dia_cierre: number | null
   created_at: string
 }
 
@@ -133,6 +134,30 @@ export interface TarjetaCreate {
   nro_cuenta: string
   nro_socio: string
   titular: string
+  dia_cierre?: number
+}
+
+// --- Mercadopago (carga manual) ---
+
+export interface GastoMercadopago {
+  id: string
+  fecha: string
+  descripcion: string
+  monto: number
+  moneda: Moneda
+  persona: Persona
+  categoria_id: string | null
+  created_at: string
+  categorias?: Pick<Categoria, 'nombre' | 'color' | 'icono'>
+}
+
+export interface GastoMercadopagoCreate {
+  fecha: string
+  descripcion: string
+  monto: number
+  moneda: Moneda
+  persona: Persona
+  categoria_id?: string
 }
 
 // --- Tipo de cambio ---
@@ -264,7 +289,7 @@ export interface ApiError {
 
 export interface FilaSemestre {
   nombre: string
-  tipo: 'tarjeta' | 'prestamo' | 'gastos_fijos'
+  tipo: 'tarjeta' | 'prestamo' | 'gastos_fijos' | 'mercadopago'
   meses: Record<string, number> // YYYY-MM → ARS
 }
 
@@ -348,4 +373,34 @@ export interface CuotaMesResumen {
   fecha_vencimiento: string
   monto_total: number
   pagada: boolean
+}
+
+// --- Resumen mensual proyectado ---
+
+export interface ComponenteResumenMensual {
+  nombre: string
+  tipo: 'real' | 'estimado'
+  monto_ars: number
+  detalle: string | null
+  alerta_desvio: boolean
+  porcentaje_desvio: number | null
+}
+
+export interface ResumenMensualProyectado {
+  mes: string
+  ingresos_ars: number
+  ingresos_cantidad: number
+  gastos_reales_ars: number
+  gastos_estimados_ars: number
+  gastos_totales_ars: number
+  saldo_proyectado_ars: number
+  porcentaje_comprometido: number
+  componentes: ComponenteResumenMensual[]
+}
+
+export interface ResumenMensualHistorico {
+  mes: string
+  ingresos_ars: number
+  gastos_ars: number
+  saldo_ars: number
 }

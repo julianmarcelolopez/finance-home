@@ -2,10 +2,13 @@ import { useState } from 'react'
 import { TarjetasTab } from './gastos/TarjetasTab'
 import { GastosDashboard } from './gastos/GastosDashboard'
 import { PrestamosTab } from './gastos/PrestamosTab'
+import { MercadopagoTab } from './gastos/MercadopagoTab'
+import { ResumenMensualTab } from './gastos/ResumenMensualTab'
 
-type Tab = 'dashboard' | 'mercadopago' | 'efectivo' | 'tarjetas' | 'prestamos'
+type Tab = 'resumen' | 'dashboard' | 'mercadopago' | 'efectivo' | 'tarjetas' | 'prestamos'
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'resumen',     label: 'Resumen mensual' },
   { id: 'dashboard',   label: 'Dashboard' },
   { id: 'mercadopago', label: 'Mercadopago' },
   { id: 'efectivo',    label: 'Efectivo' },
@@ -50,8 +53,9 @@ export default function Gastos() {
         ))}
       </div>
 
+      {tab === 'resumen'     && <ResumenMensualTab />}
       {tab === 'dashboard'   && <GastosDashboard />}
-      {tab === 'mercadopago' && <PlaceholderTab nombre="Mercadopago" />}
+      {tab === 'mercadopago' && <MercadopagoTab />}
       {tab === 'efectivo'    && <PlaceholderTab nombre="Efectivo" />}
       {tab === 'tarjetas'    && <TarjetasTab />}
       {tab === 'prestamos'   && <PrestamosTab />}

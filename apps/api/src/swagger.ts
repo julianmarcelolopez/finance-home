@@ -31,6 +31,7 @@ const options: swaggerJsdoc.Options = {
             nro_socio:  { type: 'string', example: '20125207' },
             titular:    { type: 'string', enum: ['Julian', 'Patricia'] },
             activo:     { type: 'boolean' },
+            dia_cierre: { type: 'integer', minimum: 1, maximum: 31, nullable: true, description: 'Día del mes en que cierra el ciclo. Solo informativo/display.' },
             created_at: { type: 'string', format: 'date-time' },
           },
         },
@@ -43,6 +44,7 @@ const options: swaggerJsdoc.Options = {
             nro_cuenta: { type: 'string', example: '201252' },
             nro_socio:  { type: 'string', example: '20125207' },
             titular:    { type: 'string', enum: ['Julian', 'Patricia'] },
+            dia_cierre: { type: 'integer', minimum: 1, maximum: 31 },
           },
         },
 
@@ -149,6 +151,60 @@ const options: swaggerJsdoc.Options = {
           },
         },
 
+        // --- Mercadopago (carga manual) ---
+        GastoMercadopago: {
+          type: 'object',
+          properties: {
+            id:           { type: 'string', format: 'uuid' },
+            fecha:        { type: 'string', format: 'date' },
+            descripcion:  { type: 'string', example: 'Verdulería feria' },
+            monto:        { type: 'number', example: 4500 },
+            moneda:       { type: 'string', enum: ['ARS', 'USD'] },
+            persona:      { type: 'string', enum: ['Julian', 'Patricia', 'Compartido'] },
+            categoria_id: { type: 'string', format: 'uuid', nullable: true },
+            created_at:   { type: 'string', format: 'date-time' },
+          },
+        },
+        GastoMercadopagoCreate: {
+          type: 'object',
+          required: ['fecha', 'descripcion', 'monto', 'moneda', 'persona'],
+          properties: {
+            fecha:        { type: 'string', format: 'date', example: '2026-06-05' },
+            descripcion:  { type: 'string', example: 'Verdulería feria' },
+            monto:        { type: 'number', example: 4500 },
+            moneda:       { type: 'string', enum: ['ARS', 'USD'] },
+            persona:      { type: 'string', enum: ['Julian', 'Patricia', 'Compartido'] },
+            categoria_id: { type: 'string', format: 'uuid' },
+          },
+        },
+
+        // --- Resumen mensual proyectado ---
+        ComponenteResumenMensual: {
+          type: 'object',
+          properties: {
+            nombre:             { type: 'string', example: 'Visa Galicia — Julian' },
+            tipo:               { type: 'string', enum: ['real', 'estimado'] },
+            monto_ars:          { type: 'number', example: 1180300 },
+            detalle:            { type: 'string', nullable: true, example: 'cierra el 18/07 (estimado)' },
+            alerta_desvio:      { type: 'boolean' },
+            porcentaje_desvio:  { type: 'number', nullable: true, example: 23 },
+          },
+        },
+        ResumenMensualProyectado: {
+          type: 'object',
+          properties: {
+            mes:                     { type: 'string', example: '2026-07' },
+            ingresos_ars:            { type: 'number', example: 3909738 },
+            ingresos_cantidad:       { type: 'integer', example: 1 },
+            gastos_reales_ars:       { type: 'number', example: 1980400 },
+            gastos_estimados_ars:    { type: 'number', example: 1432500 },
+            gastos_totales_ars:      { type: 'number', example: 3412900 },
+            saldo_proyectado_ars:    { type: 'number', example: 496838 },
+            porcentaje_comprometido: { type: 'number', example: 87.3 },
+            componentes:             { type: 'array', items: { $ref: '#/components/schemas/ComponenteResumenMensual' } },
+          },
+        },
+
         // --- Proyectos ---
         Proyecto: {
           type: 'object',
@@ -206,7 +262,7 @@ const options: swaggerJsdoc.Options = {
             nombre:     { type: 'string', example: 'MC Galicia — Julian' },
             pesos:      { type: 'number' },
             dolares:    { type: 'number' },
-            disponible: { type: 'boolean', description: 'false = fuente no implementada (MP, Efectivo)' },
+            disponible: { type: 'boolean', description: 'false = fuente no implementada todavía (ej: Efectivo)' },
           },
         },
         ResumenCategoriaMes: {

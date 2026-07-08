@@ -6,7 +6,7 @@ Conexión con la API de Mercadopago para importar automáticamente los movimient
 
 ## Estado
 
-[ ] Pendiente — la tab Mercadopago en `Gastos.tsx` muestra un placeholder.
+**Bloqueada** — se prioriza la carga manual ([tarea 07](../07-mercadopago-carga-manual/00-overview.md)), ya implementada. Sin fecha definida para retomar el sync por API.
 
 ## Alcance
 

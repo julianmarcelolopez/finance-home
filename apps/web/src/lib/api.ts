@@ -21,6 +21,9 @@ import type {
   CuotaPrestamo,
   PrestamoConCuotasCreate,
   CuotaMesResumen,
+  GastoMercadopago,
+  GastoMercadopagoCreate,
+  ResumenMensualProyectado,
 } from '@financehome/shared'
 
 const http = axios.create({
@@ -136,5 +139,22 @@ export const api = {
       http.get<CuotaMesResumen[]>('/api/prestamos/cuotas-mes', { params: { mes } }).then((r) => r.data),
     actualizarCuota: (id: string, cuotaId: string, body: { pagada?: boolean; monto_total?: number }) =>
       http.patch<CuotaPrestamo>(`/api/prestamos/${id}/cuotas/${cuotaId}`, body).then((r) => r.data),
+  },
+
+  gastosMercadopago: {
+    listar: (params?: { mes?: string; persona?: string; categoria_id?: string; page?: number }) =>
+      http
+        .get<PaginatedResponse<GastoMercadopago>>('/api/gastos-mercadopago', { params })
+        .then((r) => r.data),
+    crear: (body: GastoMercadopagoCreate) =>
+      http.post<GastoMercadopago>('/api/gastos-mercadopago', body).then((r) => r.data),
+    actualizar: (id: string, body: Partial<GastoMercadopagoCreate>) =>
+      http.patch<GastoMercadopago>(`/api/gastos-mercadopago/${id}`, body).then((r) => r.data),
+    eliminar: (id: string) => http.delete(`/api/gastos-mercadopago/${id}`),
+  },
+
+  gastosResumenMensual: {
+    mes: (mes: string) =>
+      http.get<ResumenMensualProyectado>('/api/gastos-resumen-mensual', { params: { mes } }).then((r) => r.data),
   },
 }

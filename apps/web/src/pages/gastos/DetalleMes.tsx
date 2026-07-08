@@ -44,7 +44,8 @@ export function DetalleMes({ mes }: { mes: string }) {
 
   const totalTarjetasPesos = data.tarjetas_mes?.reduce((s, t) => s + t.pesos, 0) ?? data.total_pesos
   const cuotasARS = data.cuotas_prestamos_ars ?? 0
-  const totalConsolidado = totalTarjetasPesos + cuotasARS
+  const otrosOrigenesPesos = data.por_origen.filter(o => o.disponible).reduce((s, o) => s + o.pesos, 0)
+  const totalConsolidado = totalTarjetasPesos + cuotasARS + otrosOrigenesPesos
 
   const totalPorcentajeFijos = totalConsolidado > 0
     ? Math.round((data.fijos_pesos / totalConsolidado) * 1000) / 10
@@ -132,12 +133,15 @@ export function DetalleMes({ mes }: { mes: string }) {
                 </>
               )}
 
-              {/* Fuentes pendientes */}
+              {/* Otros orígenes */}
               {data.por_origen.map((origen) => (
                 <tr key={origen.nombre} className="border-b border-border last:border-0">
                   <td className="px-4 py-2.5 text-muted-foreground">{origen.nombre}</td>
                   <td className="px-4 py-2.5 text-right font-mono tabular-nums">
-                    <span className="text-muted-foreground/50 text-xs">próximamente</span>
+                    {origen.disponible
+                      ? formatARS(origen.pesos)
+                      : <span className="text-muted-foreground/50 text-xs">próximamente</span>
+                    }
                   </td>
                 </tr>
               ))}

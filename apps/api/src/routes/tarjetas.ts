@@ -85,7 +85,7 @@ router.get('/', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { banco, marca, nro_cuenta, nro_socio: nroSocioRaw, titular } = req.body as TarjetaCreate
+    const { banco, marca, nro_cuenta, nro_socio: nroSocioRaw, titular, dia_cierre } = req.body as TarjetaCreate
     const nro_socio = nroSocioRaw?.replace(/-/g, '')
 
     if (!banco || !marca || !nro_cuenta || !nro_socio || !titular) {
@@ -108,6 +108,11 @@ router.post('/', async (req, res) => {
       return
     }
 
+    if (dia_cierre !== undefined && (dia_cierre < 1 || dia_cierre > 31)) {
+      res.status(400).json({ error: 'dia_cierre debe estar entre 1 y 31' })
+      return
+    }
+
     const { data: existente } = await supabaseAdmin
       .from('tarjetas')
       .select('id')
@@ -121,7 +126,7 @@ router.post('/', async (req, res) => {
 
     const { data, error } = await supabaseAdmin
       .from('tarjetas')
-      .insert({ banco, marca, nro_cuenta, nro_socio, titular })
+      .insert({ banco, marca, nro_cuenta, nro_socio, titular, dia_cierre: dia_cierre ?? null })
       .select()
       .single()
 
@@ -154,9 +159,9 @@ router.post('/', async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
- *             required: [activo]
  *             properties:
  *               activo: { type: boolean }
+ *               dia_cierre: { type: integer, minimum: 1, maximum: 31, nullable: true }
  *     responses:
  *       200:
  *         description: Tarjeta actualizada
@@ -164,7 +169,7 @@ router.post('/', async (req, res) => {
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Tarjeta' }
  *       400:
- *         description: El campo activo debe ser boolean
+ *         description: Ningún campo válido para actualizar
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
@@ -177,16 +182,25 @@ router.post('/', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   try {
     const { id } = req.params
-    const { activo } = req.body as { activo: boolean }
+    const { activo, dia_cierre } = req.body as { activo?: boolean; dia_cierre?: number | null }
 
-    if (typeof activo !== 'boolean') {
-      res.status(400).json({ error: 'El campo activo debe ser boolean' })
+    if (typeof activo !== 'boolean' && dia_cierre === undefined) {
+      res.status(400).json({ error: 'Debe enviar activo (boolean) y/o dia_cierre (1-31 o null)' })
       return
     }
 
+    if (dia_cierre !== undefined && dia_cierre !== null && (dia_cierre < 1 || dia_cierre > 31)) {
+      res.status(400).json({ error: 'dia_cierre debe estar entre 1 y 31' })
+      return
+    }
+
+    const cambios: { activo?: boolean; dia_cierre?: number | null } = {}
+    if (typeof activo === 'boolean') cambios.activo = activo
+    if (dia_cierre !== undefined) cambios.dia_cierre = dia_cierre
+
     const { data, error } = await supabaseAdmin
       .from('tarjetas')
-      .update({ activo })
+      .update(cambios)
       .eq('id', id)
       .select()
       .single()

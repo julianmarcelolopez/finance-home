@@ -7,6 +7,7 @@ const TIPO_COLOR: Record<string, string> = {
   tarjeta:     'text-foreground',
   prestamo:    'text-blue-400',
   gastos_fijos:'text-amber-400',
+  mercadopago: 'text-emerald-400',
 }
 
 function abreviarMes(mesISO: string): string {
@@ -53,14 +54,16 @@ export function TablaSemestre({ semestre }: { semestre: 1 | 2 }) {
   const { meses, filas, totales } = data
 
   // Separar filas por tipo para mostrar agrupadas
-  const tarjetas    = filas.filter(f => f.tipo === 'tarjeta')
-  const prestamos   = filas.filter(f => f.tipo === 'prestamo')
-  const gastosFijos = filas.filter(f => f.tipo === 'gastos_fijos')
+  const tarjetas     = filas.filter(f => f.tipo === 'tarjeta')
+  const prestamos    = filas.filter(f => f.tipo === 'prestamo')
+  const gastosFijos  = filas.filter(f => f.tipo === 'gastos_fijos')
+  const mercadopago  = filas.filter(f => f.tipo === 'mercadopago')
 
   const grupos = [
     { label: 'Tarjetas de crédito', filas: tarjetas, color: TIPO_COLOR.tarjeta },
     { label: 'Préstamos',           filas: prestamos, color: TIPO_COLOR.prestamo },
     { label: 'Gastos fijos',        filas: gastosFijos, color: TIPO_COLOR.gastos_fijos },
+    { label: 'Mercadopago',         filas: mercadopago, color: TIPO_COLOR.mercadopago },
   ].filter(g => g.filas.length > 0)
 
   return (
