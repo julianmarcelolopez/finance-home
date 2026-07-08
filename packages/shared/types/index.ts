@@ -91,6 +91,15 @@ export interface Ingreso {
   created_at: string
 }
 
+export interface IngresoCreate {
+  descripcion: string
+  monto: number
+  moneda: Moneda
+  persona: Persona
+  tipo: TipoIngreso
+  fecha: string
+}
+
 export type Prioridad = 'alta' | 'media' | 'baja'
 
 export interface Proyecto {

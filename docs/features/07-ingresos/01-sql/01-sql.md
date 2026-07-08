@@ -2,7 +2,7 @@
 
 ## Estado
 
-- [ ] Pendiente — ejecutar en Supabase SQL Editor
+- [x] Completado — 2026-06-30
 
 ## Diseño
 
